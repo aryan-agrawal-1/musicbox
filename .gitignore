@@ -28,8 +28,12 @@ media/
 staticfiles/
 static_root/
 
+# Dev-only management commands (seed scripts, etc.)
+backend/*/management/
+
 # Cache
 .cache/
+.cache
 
 # =============================================================================
 # Node / React (web frontend)

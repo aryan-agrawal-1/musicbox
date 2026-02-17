@@ -19,6 +19,9 @@ urlpatterns = [
         # Reviews and Ratings
         path("reviews/", include("reviews.urls")),
 
+        # Music (Albums, Songs, Artists, Search, Listening History)
+        path("music/", include("music.urls")),
+
         # Social (Follow and Feed)
         path("social/", include("social.urls")),
 
