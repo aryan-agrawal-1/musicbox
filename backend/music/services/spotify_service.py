@@ -60,7 +60,6 @@ class SpotifyService:
                 name=artist_data['name'],
                 image_url=artist_data['images'][0]['url'] if artist_data.get('images') else None,
                 genres=artist_data.get('genres', []),
-                popularity=artist_data.get('popularity'),
             )
 
     def get_or_create_album(self, spotify_id):
@@ -84,7 +83,6 @@ class SpotifyService:
                 release_date=album_data['release_date'],
                 total_tracks=album_data['total_tracks'],
                 image_url=album_data['images'][0]['url'] if album_data.get('images') else None,
-                label=album_data.get('label', ''),
             )
             album.artists.set(artists)
 
@@ -152,9 +150,13 @@ class SpotifyService:
 
         return results
 
-    def search(self, query, types=['album', 'track', 'artist'], limit=20):
-        """Search Spotify for albums, tracks, or artists"""
-        return self.client.search(q=query, type=','.join(types), limit=limit)
+    def search(self, query, types=['album', 'track', 'artist'], limit=10, offset=0):
+        """Search Spotify for albums, tracks, or artists.
+
+        Note: Spotify API (Feb 2026) caps limit at 10.
+        """
+        limit = min(limit, 10)
+        return self.client.search(q=query, type=','.join(types), limit=limit, offset=offset)
 
     def get_album(self, spotify_id):
         """Get album details from Spotify"""

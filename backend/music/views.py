@@ -23,10 +23,12 @@ class SearchView(APIView):
 
         types_param = request.query_params.get('type', 'album,track,artist')
         types = [t.strip() for t in types_param.split(',')]
-        limit = min(int(request.query_params.get('limit', 20)), 50)
+        # Spotify API (Feb 2026) caps search limit at 10
+        limit = min(int(request.query_params.get('limit', 10)), 10)
+        offset = int(request.query_params.get('offset', 0))
 
         service = SpotifyService()
-        results = service.search(query, types=types, limit=limit)
+        results = service.search(query, types=types, limit=limit, offset=offset)
 
         response = {}
         if 'albums' in results:

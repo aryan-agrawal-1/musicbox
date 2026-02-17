@@ -4,7 +4,7 @@ from music.models import Artist, Album, Song, ListeningHistory
 
 @admin.register(Artist)
 class ArtistAdmin(admin.ModelAdmin):
-    list_display = ['name', 'spotify_id', 'popularity', 'created_at']
+    list_display = ['name', 'spotify_id', 'created_at']
     search_fields = ['name', 'spotify_id']
     list_filter = ['created_at']
     readonly_fields = ['created_at', 'updated_at']

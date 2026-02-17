@@ -9,7 +9,6 @@ class Artist(models.Model):
     name = models.CharField(max_length=255)
     image_url = models.URLField(blank=True, null=True)
     genres = models.JSONField(default=list)
-    popularity = models.IntegerField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -37,7 +36,6 @@ class Album(models.Model):
     total_tracks = models.IntegerField()
     image_url = models.URLField(blank=True, null=True)
     genres = models.JSONField(default=list)
-    label = models.CharField(max_length=255, blank=True)
 
     # Denormalized ratings for performance
     avg_rating = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
