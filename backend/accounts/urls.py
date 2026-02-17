@@ -1,0 +1,17 @@
+from django.urls import path
+from . import views
+
+app_name = 'accounts'
+
+urlpatterns = [
+    # User registration and authentication
+    path('register/', views.UserRegistrationView.as_view(), name='register'),
+    path('me/', views.CurrentUserView.as_view(), name='current-user'),
+    path('users/<str:username>/', views.UserProfileView.as_view(), name='user-profile'),
+
+    # Spotify OAuth
+    path('spotify/connect/', views.spotify_connect, name='spotify-connect'),
+    path('spotify/callback/', views.spotify_callback, name='spotify-callback'),
+    path('spotify/disconnect/', views.spotify_disconnect, name='spotify-disconnect'),
+    path('spotify/status/', views.spotify_status, name='spotify-status'),
+]

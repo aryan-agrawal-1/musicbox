@@ -1,0 +1,81 @@
+# =============================================================================
+# Python / Django (backend/)
+# =============================================================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+
+# Virtual environments
+venv/
+.venv/
+env/
+backend/venv/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static_root/
+
+# Cache
+.cache/
+
+# =============================================================================
+# Node / React (web frontend)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+build/
+out/
+.next/
+
+# =============================================================================
+# Expo / React Native (mobile frontend)
+# =============================================================================
+.expo/
+.expo-shared/
+web-build/
+
+# Native build output
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.ipa
+*.apk
+*.aab
+
+# =============================================================================
+# IDE & tooling
+# =============================================================================
+
+.cursor/
+.claude/
+.agents/
+.vscode/
+
+.DS_Store
+Thumbs.db
+project-spec.md

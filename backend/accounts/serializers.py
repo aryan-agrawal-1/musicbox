@@ -1,0 +1,77 @@
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from drf_spectacular.utils import extend_schema_field
+
+User = get_user_model()
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Serializer for User model"""
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'bio', 'avatar_url', 'location',
+            'total_albums_rated', 'total_songs_rated', 'total_reviews',
+            'spotify_user_id', 'spotify_connected_at',
+            'created_at'
+        ]
+        read_only_fields = [
+            'id', 'total_albums_rated', 'total_songs_rated', 'total_reviews',
+            'spotify_user_id', 'spotify_connected_at', 'created_at'
+        ]
+
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    """Serializer for user registration"""
+
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password_confirm = serializers.CharField(write_only=True, required=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name']
+
+    def validate(self, data):
+        if data['password'] != data['password_confirm']:
+            raise serializers.ValidationError({"password": "Passwords don't match"})
+        return data
+
+    def create(self, validated_data):
+        validated_data.pop('password_confirm')
+        user = User.objects.create_user(**validated_data)
+        return user
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Detailed serializer for user profiles"""
+
+    is_spotify_connected = serializers.BooleanField(read_only=True)
+    followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'bio', 'avatar_url', 'location',
+            'total_albums_rated', 'total_songs_rated', 'total_reviews',
+            'is_spotify_connected', 'spotify_user_id', 'spotify_connected_at',
+            'followers_count', 'following_count',
+            'created_at'
+        ]
+        read_only_fields = [
+            'id', 'total_albums_rated', 'total_songs_rated', 'total_reviews',
+            'spotify_user_id', 'spotify_connected_at', 'created_at',
+            'is_spotify_connected', 'followers_count', 'following_count'
+        ]
+
+    @extend_schema_field(serializers.IntegerField)
+    def get_followers_count(self, obj) -> int:
+        return obj.followers.count()
+
+    @extend_schema_field(serializers.IntegerField)
+    def get_following_count(self, obj) -> int:
+        return obj.following.count()
