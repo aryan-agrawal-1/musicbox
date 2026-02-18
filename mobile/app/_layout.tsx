@@ -63,7 +63,7 @@ export default function RootLayout() {
   const authState: AuthState = { user, isLoading, login, register, logout };
 
   return (
-    <ThemeProvider theme={DarkTheme}>
+    <ThemeProvider value={DarkTheme}>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
         <AuthContext value={authState}>
