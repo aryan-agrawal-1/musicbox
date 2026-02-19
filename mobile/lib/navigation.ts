@@ -5,7 +5,6 @@ import { Colors } from '@/constants/colors';
  
 export const sharedStackOptions = {
   headerTransparent: true,
-  headerBlurEffect: 'systemUltraThinMaterialDark',
   headerShadowVisible: false,
   headerLargeTitleShadowVisible: false,
   headerLargeTitle: true,

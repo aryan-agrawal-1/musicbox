@@ -41,6 +41,7 @@ export interface Album {
 
 export interface Song {
   // backend calls these "songs" not "tracks"
+  id: number;
   spotify_id: string;
   name: string;
   artists: Artist[];

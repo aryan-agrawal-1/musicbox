@@ -6,7 +6,16 @@ export default function AuthLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="login" options={{ presentation: 'card' }} />
       <Stack.Screen name="register" options={{ presentation: 'card' }} />
-      <Stack.Screen name="spotify-connect" options={{ presentation: 'modal' }} />
+      <Stack.Screen
+        name="rate-song"
+        options={{
+          presentation: 'formSheet',
+          sheetGrabberVisible: true,
+          sheetAllowedDetents: [0.55, 1.0],
+          contentStyle: { backgroundColor: 'transparent' },
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

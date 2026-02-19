@@ -2,6 +2,7 @@ from rest_framework import status, generics, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.conf import settings
 from django.utils import timezone
@@ -18,25 +19,27 @@ from .serializers import UserSerializer, UserRegistrationSerializer, UserProfile
 User = get_user_model()
 
 
-def encode_state(user_id):
-    """Encode user ID into state parameter for OAuth"""
+def encode_state(user_id, redirect_scheme=None):
+    """Encode user ID and optional redirect scheme into state parameter for OAuth"""
     data = {
         'user_id': user_id,
-        'random': secrets.token_urlsafe(16)
+        'random': secrets.token_urlsafe(16),
     }
+    if redirect_scheme:
+        data['redirect_scheme'] = redirect_scheme
     json_str = json.dumps(data)
     encoded = base64.urlsafe_b64encode(json_str.encode()).decode()
     return encoded
 
 
 def decode_state(state):
-    """Decode state parameter to get user ID"""
+    """Decode state parameter to get user ID and optional redirect scheme"""
     try:
         decoded = base64.urlsafe_b64decode(state.encode()).decode()
         data = json.loads(decoded)
-        return data.get('user_id')
+        return data.get('user_id'), data.get('redirect_scheme')
     except Exception:
-        return None
+        return None, None
 
 
 # User Registration and Profile Views
@@ -55,6 +58,17 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_email(request):
+    """Check whether an email address is already registered"""
+    email = request.GET.get('email', '').strip().lower()
+    if not email:
+        return Response({'available': False})
+    exists = User.objects.filter(email__iexact=email).exists()
+    return Response({'available': not exists})
 
 
 class UserProfileView(generics.RetrieveAPIView):
@@ -79,8 +93,8 @@ class UserProfileView(generics.RetrieveAPIView):
 @permission_classes([IsAuthenticated])
 def spotify_connect(request):
     """Initiate Spotify OAuth flow"""
-    # Encode user ID in state parameter to avoid session dependency
-    state = encode_state(request.user.id)
+    redirect_scheme = request.GET.get('redirect_scheme')
+    state = encode_state(request.user.id, redirect_scheme=redirect_scheme)
 
     auth_manager = SpotifyOAuth(
         client_id=settings.SPOTIFY_CLIENT_ID,
@@ -106,21 +120,28 @@ def spotify_callback(request):
     state = request.GET.get('state')
     error = request.GET.get('error')
 
+    user_id, redirect_scheme = decode_state(state) if state else (None, None)
+
+    def build_redirect(path, params):
+        if redirect_scheme:
+            response = HttpResponse(status=302)
+            response["Location"] = f"{redirect_scheme}://spotify-callback?{params}"
+            return response
+        return redirect(f"{settings.FRONTEND_URL}{path}?{params}")
+
     if error:
-        return redirect(f"{settings.FRONTEND_URL}/settings?spotify=error&message={error}")
+        return build_redirect('/settings', f'spotify=error&message={error}')
 
     if not state:
-        return redirect(f"{settings.FRONTEND_URL}/settings?spotify=error&message=missing_state")
+        return build_redirect('/settings', 'spotify=error&message=missing_state')
 
-    # Decode user ID from state parameter
-    user_id = decode_state(state)
     if not user_id:
-        return redirect(f"{settings.FRONTEND_URL}/settings?spotify=error&message=invalid_state")
+        return build_redirect('/settings', 'spotify=error&message=invalid_state')
 
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
-        return redirect(f"{settings.FRONTEND_URL}/settings?spotify=error&message=user_not_found")
+        return build_redirect('/settings', 'spotify=error&message=user_not_found')
 
     auth_manager = SpotifyOAuth(
         client_id=settings.SPOTIFY_CLIENT_ID,
@@ -130,14 +151,12 @@ def spotify_callback(request):
 
     try:
         token_info = auth_manager.get_access_token(code, check_cache=False)
-    except Exception as e:
-        return redirect(f"{settings.FRONTEND_URL}/settings?spotify=error&message=token_error")
+    except Exception:
+        return build_redirect('/settings', 'spotify=error&message=token_error')
 
-    # Get user info from Spotify
     spotify_client = spotipy.Spotify(auth=token_info['access_token'])
     user_info = spotify_client.current_user()
 
-    # Update user with Spotify credentials
     user.spotify_user_id = user_info['id']
     user.spotify_access_token = token_info['access_token']
     user.spotify_refresh_token = token_info['refresh_token']
@@ -145,8 +164,7 @@ def spotify_callback(request):
     user.spotify_connected_at = timezone.now()
     user.save()
 
-    # Redirect to frontend
-    return redirect(f"{settings.FRONTEND_URL}/settings?spotify=connected")
+    return build_redirect('/settings', 'spotify=connected')
 
 
 @extend_schema(

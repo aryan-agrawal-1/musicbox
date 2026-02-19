@@ -6,6 +6,7 @@ app_name = 'accounts'
 urlpatterns = [
     # User registration and authentication
     path('register/', views.UserRegistrationView.as_view(), name='register'),
+    path('check-email/', views.check_email, name='check-email'),
     path('me/', views.CurrentUserView.as_view(), name='current-user'),
     path('users/<str:username>/', views.UserProfileView.as_view(), name='user-profile'),
 

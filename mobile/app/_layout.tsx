@@ -1,5 +1,5 @@
-import { use, useState, useEffect } from 'react';
-import { Redirect } from 'expo-router';
+import { useState, useEffect } from 'react';
+import { Stack } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, DarkTheme } from '@react-navigation/native';
@@ -60,48 +60,51 @@ export default function RootLayout() {
     setUser(null);
   };
 
-  const authState: AuthState = { user, isLoading, login, register, logout };
+  const refreshUser = async () => {
+    const token = await tokenStore.getAccess();
+    if (!token) return;
+    const me = await apiFetch<User>('/api/v1/auth/me/');
+    setUser(me);
+  };
+
+  const authState: AuthState = { user, isLoading, login, register, logout, refreshUser };
+
+  if (isLoading) return null;
 
   return (
     <ThemeProvider value={DarkTheme}>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
         <AuthContext value={authState}>
-          <RootNavigator />
+          {user ? (
+            <NativeTabs minimizeBehavior="onScrollDown" tintColor={Colors.accent}>
+              <NativeTabs.Trigger name="(feed)">
+                <NativeTabs.Trigger.Icon sf="house.fill" md="home" />
+                <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+              </NativeTabs.Trigger>
+
+              <NativeTabs.Trigger name="(diary)">
+                <NativeTabs.Trigger.Icon sf="book.fill" md="menu_book" />
+                <NativeTabs.Trigger.Label>Diary</NativeTabs.Trigger.Label>
+              </NativeTabs.Trigger>
+
+              <NativeTabs.Trigger name="(profile)">
+                <NativeTabs.Trigger.Icon sf="person.fill" md="person" />
+                <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
+              </NativeTabs.Trigger>
+
+              <NativeTabs.Trigger name="(search)" role="search">
+                <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
+                <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
+              </NativeTabs.Trigger>
+            </NativeTabs>
+          ) : (
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" />
+            </Stack>
+          )}
         </AuthContext>
       </QueryClientProvider>
     </ThemeProvider>
-  );
-}
-
-function RootNavigator() {
-  const { user, isLoading } = use(AuthContext);
-
-  if (isLoading) return null;
-  if (!user) return <Redirect href="/(auth)" />;
-
-  return (
-    <NativeTabs minimizeBehavior="onScrollDown" tintColor={Colors.accent}>
-      <NativeTabs.Trigger name="(feed)">
-        <NativeTabs.Trigger.Icon sf="house.fill" md="home" />
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="(diary)">
-        <NativeTabs.Trigger.Icon sf="book.fill" md="menu_book" />
-        <NativeTabs.Trigger.Label>Diary</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="(profile)">
-        <NativeTabs.Trigger.Icon sf="person.fill" md="person" />
-        <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-
-      {/* Search tab last — combines with native search bar (per SDK 55 best practice) */}
-      <NativeTabs.Trigger name="(search)" role="search">
-        <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
-        <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
   );
 }

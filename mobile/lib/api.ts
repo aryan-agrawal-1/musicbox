@@ -5,7 +5,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public code?: string
+    public code?: string,
+    public data?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'ApiError';
@@ -43,20 +44,26 @@ export async function apiFetch<T>(
   });
 
   if (response.status === 401 && !_isRetry) {
-    try {
-      await getRefreshedToken();
-    } catch {
-      throw new ApiError('Session expired', 401);
+    const refreshToken = await SecureStore.getItemAsync('refresh_token');
+    if (refreshToken) {
+      try {
+        await getRefreshedToken();
+      } catch {
+        throw new ApiError('Session expired', 401);
+      }
+      return apiFetch<T>(path, options, true);
     }
-    return apiFetch<T>(path, options, true);
+    // No refresh token (e.g. login attempt) — fall through to error handling below
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({})) as Record<string, string>;
+    const error = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const nonFieldErrors = Array.isArray(error.non_field_errors) ? (error.non_field_errors[0] as string) : undefined;
     throw new ApiError(
-      error.detail || error.message || 'Request failed',
+      (error.detail as string) || nonFieldErrors || (error.message as string) || 'Request failed',
       response.status,
-      error.code
+      error.code as string | undefined,
+      error
     );
   }
 

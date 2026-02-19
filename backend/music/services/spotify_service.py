@@ -126,8 +126,7 @@ class SpotifyService:
 
         for item in results['items']:
             track = item['track']
-            played_at = datetime.strptime(item['played_at'], '%Y-%m-%dT%H:%M:%S.%fZ')
-            played_at = timezone.make_aware(played_at)
+            played_at = datetime.fromisoformat(item['played_at'].replace('Z', '+00:00'))
 
             # Get or create album
             album = self.get_or_create_album(track['album']['id'])

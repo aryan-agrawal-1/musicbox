@@ -3,8 +3,8 @@ export const Colors = {
   surface: '#141414',
   surfaceElevated: '#1C1C1E',
   surfaceHigh: '#242428',
-  accent: '#F0A500',
-  accentDim: 'rgba(240, 165, 0, 0.15)',
+  accent: '#BF5AF2', // Neon Purple
+  accentDim: 'rgba(191, 90, 242, 0.15)',
   textPrimary: '#FFFFFF',
   textSecondary: '#ABABAB',
   textTertiary: '#5C5C60',
