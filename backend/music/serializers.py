@@ -13,6 +13,7 @@ class SongSerializer(serializers.ModelSerializer):
     album_name = serializers.CharField(source='album.name', read_only=True)
     album_image = serializers.URLField(source='album.image_url', read_only=True)
     album_spotify_id = serializers.CharField(source='album.spotify_id', read_only=True)
+    avg_rating = serializers.FloatField(allow_null=True, read_only=True)
 
     class Meta:
         model = Song
@@ -26,6 +27,7 @@ class SongSerializer(serializers.ModelSerializer):
 
 class AlbumSerializer(serializers.ModelSerializer):
     artists = ArtistSerializer(many=True, read_only=True)
+    avg_rating = serializers.FloatField(allow_null=True, read_only=True)
     popularity_score = serializers.SerializerMethodField()
 
     class Meta:
@@ -47,6 +49,7 @@ class AlbumSerializer(serializers.ModelSerializer):
 class AlbumDetailSerializer(serializers.ModelSerializer):
     artists = ArtistSerializer(many=True, read_only=True)
     songs = SongSerializer(many=True, read_only=True)
+    avg_rating = serializers.FloatField(allow_null=True, read_only=True)
     popularity_score = serializers.SerializerMethodField()
 
     class Meta:

@@ -3,6 +3,9 @@ from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.filters import OrderingFilter
+from django.db.models import ExpressionWrapper, F, FloatField
+from django.db.models.functions import Coalesce
 
 from music.models import Artist, Album, Song, ListeningHistory
 from music.serializers import (
@@ -10,6 +13,27 @@ from music.serializers import (
     SongSerializer, ListeningHistorySerializer,
 )
 from music.services.spotify_service import SpotifyService
+
+
+class AlbumListView(ListAPIView):
+    """List albums ordered by popularity or release date for feed discovery sections."""
+    permission_classes = [AllowAny]
+    serializer_class = AlbumSerializer
+    filter_backends = [OrderingFilter]
+    ordering_fields = ['release_date', 'popularity_score', 'total_ratings']
+    ordering = ['-popularity_score']
+
+    def get_queryset(self):
+        return (
+            Album.objects
+            .prefetch_related('artists')
+            .annotate(
+                popularity_score=ExpressionWrapper(
+                    Coalesce(F('avg_rating'), 0.0) * F('total_ratings'),
+                    output_field=FloatField(),
+                )
+            )
+        )
 
 
 class SearchView(APIView):

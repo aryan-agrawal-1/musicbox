@@ -1,10 +1,30 @@
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Link } from 'expo-router';
 import { Image } from 'expo-image';
+import { BlurView } from 'expo-blur';
 
 import { Colors } from '@/constants/colors';
 import { RatingBadge } from '@/components/rating-badge';
 import type { Album } from '@/types/api';
+
+function AlbumArtRatingBadge({ rating }: { rating: number }) {
+  return (
+    <View style={{ borderRadius: 100, overflow: 'hidden' }}>
+      <BlurView intensity={90} tint="dark" style={{ paddingHorizontal: 8, paddingVertical: 3 }}>
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: '600',
+            color: Colors.accent,
+            fontVariant: ['tabular-nums'],
+          }}
+        >
+          {rating.toFixed(1)} ★
+        </Text>
+      </BlurView>
+    </View>
+  );
+}
 
 interface AlbumCardProps {
   album: Album;
@@ -20,20 +40,25 @@ export function AlbumCard({ album, variant = 'large', showRating = false }: Albu
   if (variant === 'inline') {
     return (
       <Link href={`/(shared)/album/${album.spotify_id}`} asChild>
-        <Link.Trigger>
+        <Pressable>
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-            <Image
-              source={album.image_url ? { uri: album.image_url } : undefined}
+            <View
               style={{
                 width: 60,
                 height: 60,
                 borderRadius: 6,
                 borderCurve: 'continuous',
+                overflow: 'hidden',
                 backgroundColor: Colors.surfaceHigh,
               }}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
+            >
+              <Image
+                source={album.image_url ? { uri: album.image_url } : undefined}
+                style={{ width: 60, height: 60 }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            </View>
             <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
               <Text
                 style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
@@ -52,7 +77,7 @@ export function AlbumCard({ album, variant = 'large', showRating = false }: Albu
               <RatingBadge rating={album.avg_rating} />
             ) : null}
           </View>
-        </Link.Trigger>
+        </Pressable>
       </Link>
     );
   }
@@ -60,27 +85,30 @@ export function AlbumCard({ album, variant = 'large', showRating = false }: Albu
   if (variant === 'compact') {
     return (
       <Link href={`/(shared)/album/${album.spotify_id}`} asChild>
-        <Link.Trigger>
-          <View>
+        <Pressable>
+          <View
+            style={{
+              width: '100%',
+              aspectRatio: 1,
+              borderRadius: 6,
+              borderCurve: 'continuous',
+              overflow: 'hidden',
+              backgroundColor: Colors.surfaceHigh,
+            }}
+          >
             <Image
               source={album.image_url ? { uri: album.image_url } : undefined}
-              style={{
-                width: '100%',
-                aspectRatio: 1,
-                borderRadius: 6,
-                borderCurve: 'continuous',
-                backgroundColor: Colors.surfaceHigh,
-              }}
+              style={{ width: '100%', height: '100%' }}
               contentFit="cover"
               cachePolicy="memory-disk"
             />
             {showRating && album.avg_rating ? (
               <View style={{ position: 'absolute', bottom: 6, right: 6 }}>
-                <RatingBadge rating={album.avg_rating} />
+                <AlbumArtRatingBadge rating={album.avg_rating} />
               </View>
             ) : null}
           </View>
-        </Link.Trigger>
+        </Pressable>
       </Link>
     );
   }
@@ -88,20 +116,30 @@ export function AlbumCard({ album, variant = 'large', showRating = false }: Albu
   // Large (default)
   return (
     <Link href={`/(shared)/album/${album.spotify_id}`} asChild>
-      <Link.Trigger>
+      <Pressable>
         <View style={{ gap: 6 }}>
-          <Image
-            source={album.image_url ? { uri: album.image_url } : undefined}
+          <View
             style={{
               width: '100%',
               aspectRatio: 1,
               borderRadius: 8,
               borderCurve: 'continuous',
+              overflow: 'hidden',
               backgroundColor: Colors.surfaceHigh,
             }}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-          />
+          >
+            <Image
+              source={album.image_url ? { uri: album.image_url } : undefined}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+            {showRating && album.avg_rating ? (
+              <View style={{ position: 'absolute', bottom: 6, right: 6 }}>
+                <AlbumArtRatingBadge rating={album.avg_rating} />
+              </View>
+            ) : null}
+          </View>
           <Text
             style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
             numberOfLines={1}
@@ -112,7 +150,7 @@ export function AlbumCard({ album, variant = 'large', showRating = false }: Albu
             {artistNames(album)}
           </Text>
         </View>
-      </Link.Trigger>
+      </Pressable>
     </Link>
   );
 }
