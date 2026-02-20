@@ -4,7 +4,7 @@ from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.filters import OrderingFilter
-from django.db.models import ExpressionWrapper, F, FloatField
+from django.db.models import ExpressionWrapper, F, FloatField, Sum
 from django.db.models.functions import Coalesce
 
 from music.models import Artist, Album, Song, ListeningHistory
@@ -34,6 +34,32 @@ class AlbumListView(ListAPIView):
                 )
             )
         )
+
+
+class PopularArtistsView(ListAPIView):
+    """Artists ranked by aggregate popularity of their catalogued albums."""
+    permission_classes = [AllowAny]
+    serializer_class = ArtistSerializer
+
+    def get_queryset(self):
+        return (
+            Artist.objects
+            .annotate(
+                album_score=Sum(
+                    ExpressionWrapper(
+                        Coalesce(F('albums__avg_rating'), 0.0) * F('albums__total_ratings'),
+                        output_field=FloatField(),
+                    )
+                )
+            )
+            .filter(album_score__gt=0)
+            .order_by('-album_score')[:10]
+        )
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class SearchView(APIView):

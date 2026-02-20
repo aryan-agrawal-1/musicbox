@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
-import type { Album, FeedActivity, PaginatedResponse } from '@/types/api';
+import type { Album, Artist, User, FeedActivity, PaginatedResponse } from '@/types/api';
 
 export function usePopularAlbums() {
   return useQuery({
@@ -20,6 +20,22 @@ export function useNewReleases() {
       apiFetch<PaginatedResponse<Album>>(
         '/api/v1/music/albums/?ordering=-release_date&limit=10'
       ),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function usePopularArtists() {
+  return useQuery({
+    queryKey: ['artists', 'popular'],
+    queryFn: () => apiFetch<Artist[]>('/api/v1/music/artists/popular/'),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function usePopularUsers() {
+  return useQuery({
+    queryKey: ['users', 'popular'],
+    queryFn: () => apiFetch<User[]>('/api/v1/auth/users/popular/'),
     staleTime: 10 * 60 * 1000,
   });
 }

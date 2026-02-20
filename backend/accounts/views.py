@@ -1,4 +1,5 @@
 from rest_framework import status, generics, serializers
+from django.db.models import Q, Count
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -76,6 +77,45 @@ class UserProfileView(generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserProfileSerializer
     lookup_field = 'username'
+
+
+class PopularUsersView(generics.ListAPIView):
+    """Users ranked by follower count then activity."""
+    serializer_class = UserProfileSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return (
+            User.objects
+            .annotate(follower_count=Count('followers'))
+            .order_by('-follower_count', '-total_albums_rated')[:10]
+        )
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class UserSearchView(generics.ListAPIView):
+    """Search users by username or name"""
+    serializer_class = UserProfileSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        q = self.request.GET.get('q', '').strip()
+        if len(q) < 2:
+            return User.objects.none()
+        return User.objects.filter(
+            Q(username__icontains=q) |
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q)
+        )[:10]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 # Spotify OAuth Views

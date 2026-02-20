@@ -30,13 +30,14 @@ interface AlbumCardProps {
   album: Album;
   variant?: 'large' | 'compact' | 'inline';
   showRating?: boolean;
+  showLabel?: boolean;
 }
 
 function artistNames(album: Album): string {
   return album.artists.map(a => a.name).join(', ');
 }
 
-export function AlbumCard({ album, variant = 'large', showRating = false }: AlbumCardProps) {
+export function AlbumCard({ album, variant = 'large', showRating = false, showLabel = false }: AlbumCardProps) {
   if (variant === 'inline') {
     return (
       <Link href={`/(shared)/album/${album.spotify_id}`} asChild>
@@ -102,6 +103,31 @@ export function AlbumCard({ album, variant = 'large', showRating = false }: Albu
               contentFit="cover"
               cachePolicy="memory-disk"
             />
+            {showLabel && (
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  paddingHorizontal: 6,
+                  paddingBottom: 6,
+                  paddingTop: 20,
+                  // @ts-ignore — experimental_backgroundImage is New Arch / SDK 55
+                  experimental_backgroundImage:
+                    'linear-gradient(to top, rgba(0,0,0,0.92), transparent 100%)',
+                  borderBottomLeftRadius: 6,
+                  borderBottomRightRadius: 6,
+                }}
+              >
+                <Text
+                  style={{ fontSize: 11, fontWeight: '600', color: Colors.textPrimary, lineHeight: 14 }}
+                  numberOfLines={2}
+                >
+                  {album.name}
+                </Text>
+              </View>
+            )}
             {showRating && album.avg_rating ? (
               <View style={{ position: 'absolute', bottom: 6, right: 6 }}>
                 <AlbumArtRatingBadge rating={album.avg_rating} />

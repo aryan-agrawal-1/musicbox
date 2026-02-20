@@ -1,4 +1,5 @@
 import { View, Text, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 
 import { Colors } from '@/constants/colors';
 import { RatingBadge } from '@/components/rating-badge';
@@ -8,6 +9,8 @@ interface TrackRowProps {
   track: Song;
   userRating?: number;
   onPress?: () => void;
+  showTrackNumber?: boolean;
+  showAlbumArt?: boolean;
 }
 
 function formatDuration(ms: number): string {
@@ -17,7 +20,7 @@ function formatDuration(ms: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function TrackRow({ track, userRating, onPress }: TrackRowProps) {
+export function TrackRow({ track, userRating, onPress, showTrackNumber = true, showAlbumArt = false }: TrackRowProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -31,17 +34,34 @@ export function TrackRow({ track, userRating, onPress }: TrackRowProps) {
       })}
     >
       {/* Track number */}
-      <Text
-        style={{
-          width: 28,
-          fontSize: 13,
-          color: Colors.textTertiary,
-          fontVariant: ['tabular-nums'],
-          textAlign: 'center',
-        }}
-      >
-        {track.track_number}
-      </Text>
+      {showTrackNumber && (
+        <Text
+          style={{
+            width: 28,
+            fontSize: 13,
+            color: Colors.textTertiary,
+            fontVariant: ['tabular-nums'],
+            textAlign: 'center',
+          }}
+        >
+          {track.track_number}
+        </Text>
+      )}
+
+      {/* Album art */}
+      {showAlbumArt && (
+        <Image
+          source={track.album_image ? { uri: track.album_image } : undefined}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 6,
+            backgroundColor: Colors.surfaceHigh,
+          }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+        />
+      )}
 
       {/* Title + Artist */}
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
