@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { Link, Stack } from 'expo-router';
 
+import { AuthContext } from '@/contexts/auth-context';
 import { Colors } from '@/constants/colors';
 import { SectionHeader } from '@/components/section-header';
 import { AlbumCard } from '@/components/album-card';
@@ -140,6 +141,7 @@ function FriendFeedActivities({
 
 export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const auth = use(AuthContext);
 
   const {
     data: popularData,
@@ -187,6 +189,9 @@ export default function FeedScreen() {
           />
         }
       >
+        <Pressable onPress={() => auth.logout()} style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+          <Text style={{ fontSize: 14, color: Colors.textSecondary }}>Logout</Text>
+        </Pressable>
 
         {/* ── Most Popular ── */}
         <View>

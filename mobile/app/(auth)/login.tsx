@@ -85,6 +85,7 @@ export default function LoginScreen() {
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: insets.bottom + 40 }}
       >
         <View style={{ gap: 16, marginTop: 8 }}>

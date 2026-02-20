@@ -7,6 +7,8 @@ import {
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -131,6 +133,15 @@ function UsernameStep({ username, setUsername, onContinue }: UsernameStepProps) 
   const inputRef = useRef<TextInput>(null);
 
   const [status, setStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, e => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   const borderAnim = useSharedValue(0);
   const borderStyle = useAnimatedStyle(() => ({
@@ -139,7 +150,7 @@ function UsernameStep({ username, setUsername, onContinue }: UsernameStepProps) 
 
   // Auto-focus after slide animation settles
   useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 300);
+    const t = setTimeout(() => inputRef.current?.focus(), 650);
     return () => clearTimeout(t);
   }, []);
 
@@ -167,103 +178,103 @@ function UsernameStep({ username, setUsername, onContinue }: UsernameStepProps) 
   }, [username]);
 
   return (
-    <View style={{ flex: 1, paddingTop: insets.top + 80, paddingHorizontal: 24 }}>
+    <View style={{ flex: 1 }}>
       {/* Back */}
       <Pressable
         onPress={() => router.back()}
         hitSlop={16}
-        style={{ position: 'absolute', top: insets.top + 12, left: 16, padding: 8 }}
+        style={{ position: 'absolute', top: insets.top + 12, left: 16, padding: 8, zIndex: 10 }}
       >
         <Text style={{ fontSize: 24, color: Colors.textPrimary }}>‹</Text>
       </Pressable>
 
-      {/* Title */}
-      <Text
-        style={{
-          fontSize: 32,
-          fontWeight: '700',
-          color: Colors.textPrimary,
-          letterSpacing: -0.5,
-          marginBottom: 40,
-        }}
-      >
-        Claim your{' '}
+      <View style={{ flex: 1, paddingTop: insets.top + 80, paddingHorizontal: 24, paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 32 }}>
+        {/* Title */}
         <Text
           style={{
-            color: Colors.accent,
+            fontSize: 32,
+            fontWeight: '700',
+            color: Colors.textPrimary,
+            letterSpacing: -0.5,
+            marginBottom: 40,
           }}
         >
-          username
+          Claim your{' '}
+          <Text
+            style={{
+              color: Colors.accent,
+            }}
+          >
+            username
+          </Text>
         </Text>
-      </Text>
 
 
-      {/* Input row */}
-      <Animated.View
-        style={[
-          { borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', paddingBottom: 4 },
-          borderStyle,
-        ]}
-      >
-        <Text style={{ fontSize: 22, color: Colors.textTertiary, marginRight: 4 }}>@</Text>
-        <TextInput
-          ref={inputRef}
-          style={{ flex: 1, fontSize: 22, color: Colors.textPrimary, paddingVertical: 8, backgroundColor: Colors.background }}
-          placeholder="username"
-          placeholderTextColor={Colors.textTertiary}
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="username-new"
-          returnKeyType="done"
-          onSubmitEditing={() => { if (status === 'available') onContinue(); }}
-          value={username}
-          onChangeText={v => setUsername(v.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''))}
-          onFocus={() => { borderAnim.value = withTiming(1, { duration: 200 }); }}
-          onBlur={() => { borderAnim.value = withTiming(0, { duration: 200 }); }}
-        />
-      </Animated.View>
-
-      {/* Availability status */}
-      <View style={{ height: 26, marginTop: 10, justifyContent: 'center' }}>
-        {status === 'checking' && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <ActivityIndicator size="small" color={Colors.textTertiary} />
-            <Text style={{ fontSize: 14, color: Colors.textTertiary }}>Checking…</Text>
-          </View>
-        )}
-        {status === 'available' && (
-          <Text style={{ fontSize: 14, color: Colors.positive }}>● {username} is available</Text>
-        )}
-        {status === 'taken' && (
-          <Text style={{ fontSize: 14, color: Colors.destructive }}>● {username} is taken</Text>
-        )}
-      </View>
-
-      <Text
-        style={{ fontSize: 12, color: Colors.textTertiary, marginTop: 6, lineHeight: 18 }}
-      >
-        3–30 characters · letters, numbers, underscores only
-      </Text>
-
-      {/* Continue — pinned to bottom */}
-      <View
-        style={{ position: 'absolute', bottom: insets.bottom + 32, left: 24, right: 24 }}
-      >
-        <Pressable
-          onPress={onContinue}
-          disabled={status !== 'available'}
-          style={{
-            height: 52,
-            borderRadius: 14,
-            borderCurve: 'continuous',
-            backgroundColor: Colors.accent,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: status === 'available' ? 1 : 0.35,
-          }}
+        {/* Input row */}
+        <Animated.View
+          style={[
+            { borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', paddingBottom: 4 },
+            borderStyle,
+          ]}
         >
-          <Text style={{ fontSize: 17, fontWeight: '600', color: '#000000' }}>Continue →</Text>
-        </Pressable>
+          <Text style={{ fontSize: 22, color: Colors.textTertiary, marginRight: 4 }}>@</Text>
+          <TextInput
+            ref={inputRef}
+            style={{ flex: 1, fontSize: 22, color: Colors.textPrimary, paddingVertical: 8, backgroundColor: Colors.background }}
+            placeholder="username"
+            placeholderTextColor={Colors.textTertiary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="username-new"
+            returnKeyType="done"
+            onSubmitEditing={() => { if (status === 'available') onContinue(); }}
+            value={username}
+            onChangeText={v => setUsername(v.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''))}
+            onFocus={() => { borderAnim.value = withTiming(1, { duration: 200 }); }}
+            onBlur={() => { borderAnim.value = withTiming(0, { duration: 200 }); }}
+          />
+        </Animated.View>
+
+        {/* Availability status */}
+        <View style={{ height: 26, marginTop: 10, justifyContent: 'center' }}>
+          {status === 'checking' && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <ActivityIndicator size="small" color={Colors.textTertiary} />
+              <Text style={{ fontSize: 14, color: Colors.textTertiary }}>Checking…</Text>
+            </View>
+          )}
+          {status === 'available' && (
+            <Text style={{ fontSize: 14, color: Colors.positive }}>● {username} is available</Text>
+          )}
+          {status === 'taken' && (
+            <Text style={{ fontSize: 14, color: Colors.destructive }}>● {username} is taken</Text>
+          )}
+        </View>
+
+        <Text
+          style={{ fontSize: 12, color: Colors.textTertiary, marginTop: 6, lineHeight: 18 }}
+        >
+          3–30 characters · letters, numbers, underscores only
+        </Text>
+
+        {/* Continue — pushed to bottom via marginTop auto */}
+        <View style={{ marginTop: 'auto' }}>
+          <Pressable
+            onPress={onContinue}
+            disabled={status !== 'available'}
+            style={{
+              height: 52,
+              borderRadius: 14,
+              borderCurve: 'continuous',
+              backgroundColor: Colors.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: status === 'available' ? 1 : 0.35,
+            }}
+          >
+            <Text style={{ fontSize: 17, fontWeight: '600', color: '#000000' }}>Continue →</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -380,6 +391,7 @@ function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="handled"
       style={{ flex: 1 }}
       contentContainerStyle={{
         paddingHorizontal: 24,
@@ -455,7 +467,7 @@ function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
             placeholderTextColor={Colors.textTertiary}
             secureTextEntry={!showPassword}
             autoComplete="new-password"
-            textContentType="none"
+            textContentType="newPassword"
             returnKeyType="next"
             value={password}
             onChangeText={setPassword}
@@ -493,7 +505,7 @@ function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
             placeholderTextColor={Colors.textTertiary}
             secureTextEntry={!showConfirm}
             autoComplete="new-password"
-            textContentType="none"
+            textContentType="newPassword"
             returnKeyType="done"
             onSubmitEditing={() => { if (canSubmit) handleSubmit(); }}
             value={confirm}
