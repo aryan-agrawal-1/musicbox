@@ -16,6 +16,7 @@ export default function SharedLayout() {
           sheetGrabberVisible: true,
           sheetAllowedDetents: [0.55, 1.0],
           contentStyle: { backgroundColor: 'transparent' },
+          headerShown: false,
         }}
       />
     </Stack>

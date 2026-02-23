@@ -22,6 +22,7 @@ class AlbumRating(models.Model):
     class Meta:
         db_table = 'album_ratings'
         unique_together = [['user', 'album']]
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['album', '-rating']),
@@ -48,6 +49,7 @@ class SongRating(models.Model):
     class Meta:
         db_table = 'song_ratings'
         unique_together = [['user', 'song']]
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['song', '-rating']),

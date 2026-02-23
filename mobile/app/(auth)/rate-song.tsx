@@ -1,107 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { apiFetch } from '@/lib/api';
 import { onboardingStore } from '@/lib/onboarding-store';
 import { Colors } from '@/constants/colors';
+import { StarRating, getRatingLabel } from '@/components/star-rating';
 import type { Artist } from '@/types/api';
-
-// ---------------------------------------------------------------------------
-// Half-star row
-// ---------------------------------------------------------------------------
-
-interface HalfStarRowProps {
-  value: number;
-  onChange: (v: number) => void;
-}
-
-// Star dimensions must match to make the drag calculation correct
-const STAR_WIDTH = 44;
-const STAR_GAP = 6;
-
-function computeStarRating(x: number): number {
-  const slotWidth = STAR_WIDTH + STAR_GAP; // 50px per star slot
-  const totalWidth = 5 * STAR_WIDTH + 4 * STAR_GAP; // 244px
-  const clamped = Math.max(0, Math.min(x, totalWidth));
-  const slotIndex = Math.min(4, Math.floor(clamped / slotWidth));
-  const posInSlot = clamped - slotIndex * slotWidth;
-  // In the gap between stars → count as the full star just passed
-  if (posInSlot >= STAR_WIDTH) return slotIndex + 1;
-  // Left half → n.5, right half → n
-  return posInSlot < STAR_WIDTH / 2 ? slotIndex + 0.5 : slotIndex + 1;
-}
-
-function HalfStarRow({ value, onChange }: HalfStarRowProps) {
-  const lastRating = useRef(value);
-  const rowRef = useRef<View>(null);
-  const rowPageX = useRef(0);
-
-  function measureRow() {
-    rowRef.current?.measure((_x, _y, _w, _h, pageX) => {
-      rowPageX.current = pageX;
-    });
-  }
-
-  function handleTouch(pageX: number) {
-    const x = pageX - rowPageX.current;
-    const next = computeStarRating(x);
-    if (next !== lastRating.current) {
-      lastRating.current = next;
-      if (process.env.EXPO_OS === 'ios') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-      onChange(next);
-    }
-  }
-
-  return (
-    <View
-      ref={rowRef}
-      onLayout={measureRow}
-      style={{ flexDirection: 'row', gap: STAR_GAP }}
-      onStartShouldSetResponder={() => true}
-      onMoveShouldSetResponder={() => true}
-      onResponderGrant={e => {
-        measureRow();
-        handleTouch(e.nativeEvent.pageX);
-      }}
-      onResponderMove={e => handleTouch(e.nativeEvent.pageX)}
-    >
-      {[1, 2, 3, 4, 5].map(star => {
-        const fill = value >= star ? 1 : value >= star - 0.5 ? 0.5 : 0;
-        return (
-          <View key={star} style={{ width: STAR_WIDTH, height: STAR_WIDTH }}>
-            {/* Background empty star */}
-            <Text
-              style={{
-                fontSize: 38,
-                position: 'absolute',
-                color: 'rgba(255, 255, 255, 0.18)',
-                lineHeight: STAR_WIDTH,
-              }}
-            >
-              ★
-            </Text>
-            {/* Foreground star clipped to fill fraction */}
-            {fill > 0 && (
-              <View style={{ position: 'absolute', width: STAR_WIDTH * fill, overflow: 'hidden' }}>
-                <Text style={{ fontSize: 38, color: Colors.accent, lineHeight: STAR_WIDTH }}>★</Text>
-              </View>
-            )}
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Rate-song sheet
-// ---------------------------------------------------------------------------
 
 export default function RateSongSheet() {
   const router = useRouter();
@@ -165,22 +72,7 @@ export default function RateSongSheet() {
     }
   }
 
-  const ratingLabel =
-    rating === 0
-      ? 'Tap to rate'
-      : rating === 5
-        ? 'Masterpiece'
-        : rating >= 4.5
-          ? 'Exceptional'
-          : rating >= 4
-            ? 'Great'
-            : rating >= 3.5
-              ? 'Good'
-              : rating >= 3
-                ? 'Decent'
-                : rating >= 2
-                  ? 'Not great'
-                  : 'Poor';
+  const ratingLabel = getRatingLabel(rating);
 
   return (
     <ScrollView
@@ -243,7 +135,7 @@ export default function RateSongSheet() {
 
       {/* Star rating */}
       <View style={{ alignItems: 'center', gap: 12 }}>
-        <HalfStarRow value={rating} onChange={setRating} />
+        <StarRating value={rating} onChange={setRating} size={38} />
         <Text
           style={{
             fontSize: 14,

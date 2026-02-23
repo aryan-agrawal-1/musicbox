@@ -25,6 +25,7 @@ export interface Artist {
 }
 
 export interface Album {
+  id: number;
   spotify_id: string;
   name: string; // "name" not "title"
   release_date: string;

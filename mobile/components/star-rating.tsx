@@ -63,6 +63,17 @@ function Star({
   );
 }
 
+export function getRatingLabel(rating: number): string {
+  if (rating === 0) return 'Tap to rate';
+  if (rating === 5) return 'Masterpiece';
+  if (rating >= 4.5) return 'Exceptional';
+  if (rating >= 4) return 'Great';
+  if (rating >= 3.5) return 'Good';
+  if (rating >= 3) return 'Decent';
+  if (rating >= 2) return 'Not great';
+  return 'Poor';
+}
+
 export function StarRating({ value, onChange, size = 28 }: StarRatingProps) {
   const interactive = !!onChange;
   const lastRating = useRef(value);

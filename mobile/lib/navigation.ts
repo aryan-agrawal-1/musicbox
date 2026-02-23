@@ -15,6 +15,7 @@ export const sharedStackOptions = {
 };
 
 export const rateScreenOptions = {
+  headerShown: false,
   headerLargeTitle: false,
   presentation: 'formSheet',
   sheetGrabberVisible: true,
