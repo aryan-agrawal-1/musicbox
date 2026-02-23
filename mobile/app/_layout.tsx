@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useSegments } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, DarkTheme } from '@react-navigation/native';
@@ -67,6 +67,11 @@ export default function RootLayout() {
     setUser(me);
   };
 
+  // Derive tab bar visibility from URL segments — eliminates context chain latency.
+  // Tab indexes have 1 segment e.g. ['(feed)'], detail screens have >1 e.g. ['(feed)', 'album', 'abc']
+  const segments = useSegments();
+  const isTabBarHidden = segments.length > 1;
+
   const authState: AuthState = { user, isLoading, login, register, logout, refreshUser };
 
   if (isLoading) return null;
@@ -77,7 +82,7 @@ export default function RootLayout() {
         <StatusBar style="light" />
         <AuthContext value={authState}>
           {user ? (
-            <NativeTabs minimizeBehavior="onScrollDown" tintColor={Colors.accent}>
+            <NativeTabs minimizeBehavior="onScrollDown" tintColor={Colors.accent} hidden={isTabBarHidden}>
               <NativeTabs.Trigger name="(feed)">
                 <NativeTabs.Trigger.Icon sf="house.fill" md="home" />
                 <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>

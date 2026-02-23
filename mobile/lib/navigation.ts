@@ -13,3 +13,11 @@ export const sharedStackOptions = {
   headerLargeTitleStyle: { color: Colors.textPrimary },
   contentStyle: { backgroundColor: Colors.background },
 };
+
+export const rateScreenOptions = {
+  headerLargeTitle: false,
+  presentation: 'formSheet',
+  sheetGrabberVisible: true,
+  sheetAllowedDetents: [0.55, 1.0],
+  contentStyle: { backgroundColor: 'transparent' },
+} as const;

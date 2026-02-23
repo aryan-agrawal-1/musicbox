@@ -1,10 +1,5 @@
-import { Stack } from 'expo-router';
-import { sharedStackOptions } from '@/lib/navigation';
+import TabStackLayout from '@/lib/tab-stack-layout';
 
 export default function DiaryLayout() {
-  return (
-    <Stack screenOptions={sharedStackOptions}>
-      <Stack.Screen name="index" options={{ title: 'Diary' }} />
-    </Stack>
-  );
+  return <TabStackLayout indexTitle="Diary" />;
 }

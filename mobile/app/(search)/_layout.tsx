@@ -1,10 +1,5 @@
-import { Stack } from 'expo-router';
-import { sharedStackOptions } from '@/lib/navigation';
+import TabStackLayout from '@/lib/tab-stack-layout';
 
 export default function SearchLayout() {
-  return (
-    <Stack screenOptions={sharedStackOptions}>
-      <Stack.Screen name="index" options={{ title: 'Search' }} />
-    </Stack>
-  );
+  return <TabStackLayout indexTitle="Search" />;
 }

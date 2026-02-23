@@ -144,8 +144,39 @@ class ArtistDetailView(APIView):
 
         albums = Album.objects.filter(artists=artist).prefetch_related('artists').order_by('-release_date')
 
+        album_agg = Album.objects.filter(artists=artist).aggregate(
+            weighted_sum=Coalesce(
+                Sum(
+                    ExpressionWrapper(
+                        Coalesce(F('avg_rating'), 0.0) * F('total_ratings'),
+                        output_field=FloatField(),
+                    )
+                ),
+                0.0,
+            ),
+            ratings_count=Coalesce(Sum('total_ratings'), 0),
+        )
+        song_agg = Song.objects.filter(artists=artist).aggregate(
+            weighted_sum=Coalesce(
+                Sum(
+                    ExpressionWrapper(
+                        Coalesce(F('avg_rating'), 0.0) * F('total_ratings'),
+                        output_field=FloatField(),
+                    )
+                ),
+                0.0,
+            ),
+            ratings_count=Coalesce(Sum('total_ratings'), 0),
+        )
+
+        total_ratings = int(album_agg['ratings_count'] + song_agg['ratings_count'])
+        weighted_sum = float(album_agg['weighted_sum'] + song_agg['weighted_sum'])
+        avg_rating = round(weighted_sum / total_ratings, 2) if total_ratings > 0 else None
+
         return Response({
             **ArtistSerializer(artist).data,
+            'avg_rating': avg_rating,
+            'total_ratings': total_ratings,
             'albums': AlbumSerializer(albums, many=True).data,
         })
 

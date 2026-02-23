@@ -4,10 +4,10 @@ import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { AvatarImage } from '@/components/avatar-image';
 import { StarRating } from '@/components/star-rating';
-import type { AlbumReview } from '@/types/api';
+import type { AlbumReview, SongReview } from '@/types/api';
 
 interface ReviewCardProps {
-  review: AlbumReview;
+  review: AlbumReview | SongReview;
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -23,7 +23,7 @@ function formatRelativeTime(dateStr: string): string {
   return `${Math.floor(diffDays / 365)}y ago`;
 }
 
-function displayName(user: AlbumReview['user']): string {
+function displayName(user: (AlbumReview | SongReview)['user']): string {
   const full = `${user.first_name} ${user.last_name}`.trim();
   return full || user.username;
 }
@@ -33,7 +33,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
 
   return (
     <Pressable
-      onPress={() => router.push(`/(shared)/review/${review.id}`)}
+      onPress={() => router.push(`/review/${review.id}`)}
       style={({ pressed }) => ({
         backgroundColor: Colors.surfaceElevated,
         borderRadius: 12,

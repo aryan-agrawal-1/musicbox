@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from 'react-native';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 
@@ -38,59 +38,20 @@ function artistNames(album: Album): string {
 }
 
 export function AlbumCard({ album, variant = 'large', showRating = false, showLabel = false }: AlbumCardProps) {
+  const router = useRouter();
+  const href = `/album/${album.spotify_id}` as `/${string}`;
+
   if (variant === 'inline') {
     return (
-      <Link href={`/(shared)/album/${album.spotify_id}`} asChild>
-        <Pressable>
-          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-            <View
-              style={{
-                width: 60,
-                height: 60,
-                borderRadius: 6,
-                borderCurve: 'continuous',
-                overflow: 'hidden',
-                backgroundColor: Colors.surfaceHigh,
-              }}
-            >
-              <Image
-                source={album.image_url ? { uri: album.image_url } : undefined}
-                style={{ width: 60, height: 60 }}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-            </View>
-            <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-              <Text
-                style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
-                numberOfLines={1}
-              >
-                {album.name}
-              </Text>
-              <Text
-                style={{ fontSize: 13, color: Colors.textSecondary }}
-                numberOfLines={1}
-              >
-                {artistNames(album)}
-              </Text>
-            </View>
-            {showRating && album.avg_rating ? (
-              <RatingBadge rating={album.avg_rating} />
-            ) : null}
-          </View>
-        </Pressable>
-      </Link>
-    );
-  }
-
-  if (variant === 'compact') {
-    return (
-      <Link href={`/(shared)/album/${album.spotify_id}`} asChild>
-        <Pressable>
+      <Pressable
+        onPress={() => router.push(href)}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      >
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
           <View
             style={{
-              width: '100%',
-              aspectRatio: 1,
+              width: 60,
+              height: 60,
               borderRadius: 6,
               borderCurve: 'continuous',
               overflow: 'hidden',
@@ -99,84 +60,123 @@ export function AlbumCard({ album, variant = 'large', showRating = false, showLa
           >
             <Image
               source={album.image_url ? { uri: album.image_url } : undefined}
-              style={{ width: '100%', height: '100%' }}
+              style={{ width: 60, height: 60 }}
               contentFit="cover"
               cachePolicy="memory-disk"
             />
-            {showLabel && (
-              <View
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  paddingHorizontal: 6,
-                  paddingBottom: 6,
-                  paddingTop: 20,
-                  // @ts-ignore — experimental_backgroundImage is New Arch / SDK 55
-                  experimental_backgroundImage:
-                    'linear-gradient(to top, rgba(0,0,0,0.92), transparent 100%)',
-                  borderBottomLeftRadius: 6,
-                  borderBottomRightRadius: 6,
-                }}
-              >
-                <Text
-                  style={{ fontSize: 11, fontWeight: '600', color: Colors.textPrimary, lineHeight: 14 }}
-                  numberOfLines={2}
-                >
-                  {album.name}
-                </Text>
-              </View>
-            )}
-            {showRating && album.avg_rating ? (
-              <View style={{ position: 'absolute', bottom: 6, right: 6 }}>
-                <AlbumArtRatingBadge rating={album.avg_rating} />
-              </View>
-            ) : null}
           </View>
-        </Pressable>
-      </Link>
+          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+            <Text
+              style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
+              numberOfLines={1}
+            >
+              {album.name}
+            </Text>
+            <Text
+              style={{ fontSize: 13, color: Colors.textSecondary }}
+              numberOfLines={1}
+            >
+              {artistNames(album)}
+            </Text>
+          </View>
+          {showRating && album.avg_rating ? (
+            <RatingBadge rating={album.avg_rating} />
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  }
+
+  if (variant === 'compact') {
+    return (
+      <Pressable onPress={() => router.push(href)} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+        <View
+          style={{
+            width: '100%',
+            aspectRatio: 1,
+            borderRadius: 6,
+            borderCurve: 'continuous',
+            overflow: 'hidden',
+            backgroundColor: Colors.surfaceHigh,
+          }}
+        >
+          <Image
+            source={album.image_url ? { uri: album.image_url } : undefined}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+          {showLabel && (
+            <View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                paddingHorizontal: 6,
+                paddingBottom: 6,
+                paddingTop: 20,
+                // @ts-ignore — experimental_backgroundImage is New Arch / SDK 55
+                experimental_backgroundImage:
+                  'linear-gradient(to top, rgba(0,0,0,0.92), transparent 100%)',
+                borderBottomLeftRadius: 6,
+                borderBottomRightRadius: 6,
+              }}
+            >
+              <Text
+                style={{ fontSize: 11, fontWeight: '600', color: Colors.textPrimary, lineHeight: 14 }}
+                numberOfLines={2}
+              >
+                {album.name}
+              </Text>
+            </View>
+          )}
+          {showRating && album.avg_rating ? (
+            <View style={{ position: 'absolute', bottom: 6, right: 6 }}>
+              <AlbumArtRatingBadge rating={album.avg_rating} />
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
     );
   }
 
   // Large (default)
   return (
-    <Link href={`/(shared)/album/${album.spotify_id}`} asChild>
-      <Pressable>
-        <View style={{ gap: 6 }}>
-          <View
-            style={{
-              width: '100%',
-              aspectRatio: 1,
-              borderRadius: 8,
-              borderCurve: 'continuous',
-              overflow: 'hidden',
-              backgroundColor: Colors.surfaceHigh,
-            }}
-          >
-            <Image
-              source={album.image_url ? { uri: album.image_url } : undefined}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-            {showRating && album.avg_rating ? (
-              <View style={{ position: 'absolute', bottom: 6, right: 6 }}>
-                <AlbumArtRatingBadge rating={album.avg_rating} />
-              </View>
-            ) : null}
-          </View>
-          <Text
-            style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
-            numberOfLines={1}
-          >
-            {album.name}
-          </Text>
-          <Text style={{ fontSize: 13, color: Colors.textSecondary }} numberOfLines={1}>
-            {artistNames(album)}
-          </Text>
+    <Pressable onPress={() => router.push(href)} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+      <View style={{ gap: 6 }}>
+        <View
+          style={{
+            width: '100%',
+            aspectRatio: 1,
+            borderRadius: 8,
+            borderCurve: 'continuous',
+            overflow: 'hidden',
+            backgroundColor: Colors.surfaceHigh,
+          }}
+        >
+          <Image
+            source={album.image_url ? { uri: album.image_url } : undefined}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+          {showRating && album.avg_rating ? (
+            <View style={{ position: 'absolute', bottom: 6, right: 6 }}>
+              <AlbumArtRatingBadge rating={album.avg_rating} />
+            </View>
+          ) : null}
         </View>
-      </Pressable>
-    </Link>
+        <Text
+          style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
+          numberOfLines={1}
+        >
+          {album.name}
+        </Text>
+        <Text style={{ fontSize: 13, color: Colors.textSecondary }} numberOfLines={1}>
+          {artistNames(album)}
+        </Text>
+      </View>
+    </Pressable>
   );
 }

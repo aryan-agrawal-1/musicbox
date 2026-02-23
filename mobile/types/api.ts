@@ -133,3 +133,14 @@ export interface AuthTokens {
   access: string;
   refresh: string;
 }
+
+export interface ArtistDetail {
+  id: number;
+  spotify_id: string;
+  name: string;
+  image_url: string | null;
+  genres: string[];
+  avg_rating: number | null;
+  total_ratings: number;
+  albums: Album[];
+}

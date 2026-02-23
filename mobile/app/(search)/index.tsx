@@ -112,7 +112,7 @@ function ArtistCircle({ artist }: { artist: Artist }) {
   const router = useRouter();
   return (
     <Pressable
-      onPress={() => router.push(`/(shared)/artist/${artist.spotify_id}` as `/${string}`)}
+      onPress={() => router.push(`/artist/${artist.spotify_id}` as `/${string}`)}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: 72, alignItems: 'center', gap: 8 })}
     >
       <Image
@@ -135,7 +135,7 @@ function UserCircle({ user }: { user: User }) {
   const router = useRouter();
   return (
     <Pressable
-      onPress={() => router.push(`/(shared)/user/${user.username}` as `/${string}`)}
+      onPress={() => router.push(`/user/${user.username}` as `/${string}`)}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: 72, alignItems: 'center', gap: 8 })}
     >
       <Image
@@ -170,7 +170,7 @@ function ArtistRow({ artist }: { artist: SpotifyArtistResult }) {
   const genre = artist.genres?.[0];
   return (
     <Pressable
-      onPress={() => router.push(`/(shared)/artist/${artist.id}` as `/${string}`)}
+      onPress={() => router.push(`/artist/${artist.id}` as `/${string}`)}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
     >
       <View
@@ -224,7 +224,7 @@ function UserRow({ user }: { user: User }) {
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
   return (
     <Pressable
-      onPress={() => router.push(`/(shared)/user/${user.username}` as `/${string}`)}
+      onPress={() => router.push(`/user/${user.username}` as `/${string}`)}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
     >
       <View
@@ -447,7 +447,7 @@ export default function SearchScreen() {
                         showTrackNumber={false}
                         showAlbumArt
                         onPress={() =>
-                          router.push(`/(shared)/track/${track.spotify_id}` as `/${string}`)
+                          router.push(`/track/${track.spotify_id}` as `/${string}`)
                         }
                       />
                       {i < tracks.length - 1 && (

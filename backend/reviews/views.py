@@ -16,9 +16,17 @@ class AlbumRatingViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Users can see all ratings but can only edit their own
         if self.action in ['list', 'retrieve']:
-            return AlbumRating.objects.select_related('user', 'album').all()
+            qs = AlbumRating.objects.select_related('user', 'album').all()
+            album = self.request.query_params.get('album')
+            user = self.request.query_params.get('user')
+            if album:
+                qs = qs.filter(album__spotify_id=album)
+            if user == 'me':
+                qs = qs.filter(user=self.request.user)
+            elif user:
+                qs = qs.filter(user__username=user)
+            return qs
         return AlbumRating.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -44,9 +52,17 @@ class SongRatingViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Users can see all ratings but can only edit their own
         if self.action in ['list', 'retrieve']:
-            return SongRating.objects.select_related('user', 'song', 'song__album').all()
+            qs = SongRating.objects.select_related('user', 'song', 'song__album').all()
+            song = self.request.query_params.get('song')
+            user = self.request.query_params.get('user')
+            if song:
+                qs = qs.filter(song__spotify_id=song)
+            if user == 'me':
+                qs = qs.filter(user=self.request.user)
+            elif user:
+                qs = qs.filter(user__username=user)
+            return qs
         return SongRating.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -70,9 +86,17 @@ class AlbumReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Everyone can read reviews, but users can only edit their own
         if self.action in ['list', 'retrieve']:
-            return AlbumReview.objects.select_related('user', 'album', 'rating').all()
+            qs = AlbumReview.objects.select_related('user', 'album', 'rating').all()
+            album = self.request.query_params.get('album')
+            user = self.request.query_params.get('user')
+            if album:
+                qs = qs.filter(album__spotify_id=album)
+            if user == 'me':
+                qs = qs.filter(user=self.request.user)
+            elif user:
+                qs = qs.filter(user__username=user)
+            return qs
         return AlbumReview.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -96,9 +120,17 @@ class SongReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Everyone can read reviews, but users can only edit their own
         if self.action in ['list', 'retrieve']:
-            return SongReview.objects.select_related('user', 'song', 'song__album', 'rating').all()
+            qs = SongReview.objects.select_related('user', 'song', 'song__album', 'rating').all()
+            song = self.request.query_params.get('song')
+            user = self.request.query_params.get('user')
+            if song:
+                qs = qs.filter(song__spotify_id=song)
+            if user == 'me':
+                qs = qs.filter(user=self.request.user)
+            elif user:
+                qs = qs.filter(user__username=user)
+            return qs
         return SongReview.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
