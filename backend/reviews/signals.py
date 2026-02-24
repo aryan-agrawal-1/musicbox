@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.db.models import Avg, F
-from reviews.models import AlbumRating, SongRating, AlbumReview, SongReview
+from reviews.models import AlbumRating, SongRating, AlbumReview, SongReview, AlbumReviewLike, SongReviewLike
 from social.models import FeedActivity
 
 
@@ -119,3 +119,25 @@ def delete_song_review_activity(sender, instance, **kwargs):
     instance.user.__class__.objects.filter(pk=instance.user.pk).update(
         total_reviews=F('total_reviews') - 1
     )
+
+
+@receiver(post_save, sender=AlbumReviewLike)
+def increment_album_review_likes(sender, instance, created, **kwargs):
+    if created:
+        AlbumReview.objects.filter(pk=instance.review_id).update(likes_count=F('likes_count') + 1)
+
+
+@receiver(post_delete, sender=AlbumReviewLike)
+def decrement_album_review_likes(sender, instance, **kwargs):
+    AlbumReview.objects.filter(pk=instance.review_id).update(likes_count=F('likes_count') - 1)
+
+
+@receiver(post_save, sender=SongReviewLike)
+def increment_song_review_likes(sender, instance, created, **kwargs):
+    if created:
+        SongReview.objects.filter(pk=instance.review_id).update(likes_count=F('likes_count') + 1)
+
+
+@receiver(post_delete, sender=SongReviewLike)
+def decrement_song_review_likes(sender, instance, **kwargs):
+    SongReview.objects.filter(pk=instance.review_id).update(likes_count=F('likes_count') - 1)

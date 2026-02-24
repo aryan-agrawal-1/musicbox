@@ -109,3 +109,121 @@ class SongReview(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s review of {self.song.name}"
+
+
+class AlbumReviewLike(models.Model):
+    """Like on an album review"""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='album_review_likes', on_delete=models.CASCADE)
+    review = models.ForeignKey(AlbumReview, related_name='likes', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'album_review_likes'
+        unique_together = [['user', 'review']]
+
+    def __str__(self):
+        return f"{self.user.username} liked AlbumReview({self.review_id})"
+
+
+class SongReviewLike(models.Model):
+    """Like on a song review"""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='song_review_likes', on_delete=models.CASCADE)
+    review = models.ForeignKey(SongReview, related_name='likes', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'song_review_likes'
+        unique_together = [['user', 'review']]
+
+    def __str__(self):
+        return f"{self.user.username} liked SongReview({self.review_id})"
+
+
+class AlbumReviewComment(models.Model):
+    """Comment on an album review"""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='album_review_comments', on_delete=models.CASCADE)
+    review = models.ForeignKey(AlbumReview, related_name='comments', on_delete=models.CASCADE)
+    parent = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='replies'
+    )
+    content = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'album_review_comments'
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['review', 'created_at']),
+            models.Index(fields=['parent']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} on AlbumReview({self.review_id})"
+
+
+class SongReviewComment(models.Model):
+    """Comment on a song review"""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='song_review_comments', on_delete=models.CASCADE)
+    review = models.ForeignKey(SongReview, related_name='comments', on_delete=models.CASCADE)
+    parent = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='replies'
+    )
+    content = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'song_review_comments'
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['review', 'created_at']),
+            models.Index(fields=['parent']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} on SongReview({self.review_id})"
+
+
+class AlbumReviewCommentLike(models.Model):
+    """Like on an album review comment"""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='album_review_comment_likes', on_delete=models.CASCADE)
+    comment = models.ForeignKey(AlbumReviewComment, related_name='likes', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'album_review_comment_likes'
+        unique_together = [['user', 'comment']]
+
+    def __str__(self):
+        return f"{self.user.username} liked AlbumReviewComment({self.comment_id})"
+
+
+class SongReviewCommentLike(models.Model):
+    """Like on a song review comment"""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='song_review_comment_likes', on_delete=models.CASCADE)
+    comment = models.ForeignKey(SongReviewComment, related_name='likes', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'song_review_comment_likes'
+        unique_together = [['user', 'comment']]
+
+    def __str__(self):
+        return f"{self.user.username} liked SongReviewComment({self.comment_id})"

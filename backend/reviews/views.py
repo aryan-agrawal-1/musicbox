@@ -1,10 +1,18 @@
 from rest_framework import viewsets, permissions
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
-from reviews.models import AlbumRating, SongRating, AlbumReview, SongReview
+from django.db.models import Count, Exists, OuterRef
+from reviews.models import (
+    AlbumRating, SongRating, AlbumReview, SongReview,
+    AlbumReviewLike, SongReviewLike,
+    AlbumReviewComment, SongReviewComment,
+    AlbumReviewCommentLike, SongReviewCommentLike,
+)
 from reviews.serializers import (
     AlbumRatingSerializer, SongRatingSerializer,
-    AlbumReviewSerializer, SongReviewSerializer
+    AlbumReviewSerializer, SongReviewSerializer,
+    AlbumReviewCommentSerializer, SongReviewCommentSerializer,
 )
 from api.permissions import IsOwner
 
@@ -91,18 +99,21 @@ class AlbumReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        user = self.request.user
         if self.action in ['list', 'retrieve']:
-            qs = AlbumReview.objects.select_related('user', 'album', 'rating').all()
+            qs = AlbumReview.objects.select_related('user', 'album', 'rating').annotate(
+                is_liked=Exists(AlbumReviewLike.objects.filter(review=OuterRef('pk'), user=user))
+            )
             album = self.request.query_params.get('album')
-            user = _get_user_filter(self.request.query_params)
+            filter_user = _get_user_filter(self.request.query_params)
             if album:
                 qs = qs.filter(album__spotify_id=album)
-            if user == 'me':
-                qs = qs.filter(user=self.request.user)
-            elif user:
-                qs = qs.filter(user__username=user)
+            if filter_user == 'me':
+                qs = qs.filter(user=user)
+            elif filter_user:
+                qs = qs.filter(user__username=filter_user)
             return qs.order_by('-created_at')
-        return AlbumReview.objects.filter(user=self.request.user)
+        return AlbumReview.objects.filter(user=user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -116,6 +127,20 @@ class AlbumReviewViewSet(viewsets.ModelViewSet):
         if instance.user != self.request.user:
             raise permissions.PermissionDenied("You can only delete your own reviews")
         instance.delete()
+
+    @action(detail=True, methods=['post'], url_path='like')
+    def like(self, request, pk=None):
+        review = self.get_object()
+        _, created = AlbumReviewLike.objects.get_or_create(user=request.user, review=review)
+        return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'], url_path='like')
+    def unlike(self, request, pk=None):
+        review = self.get_object()
+        deleted, _ = AlbumReviewLike.objects.filter(user=request.user, review=review).delete()
+        if not deleted:
+            return Response({'detail': 'Not liked.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SongReviewViewSet(viewsets.ModelViewSet):
@@ -125,18 +150,21 @@ class SongReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        user = self.request.user
         if self.action in ['list', 'retrieve']:
-            qs = SongReview.objects.select_related('user', 'song', 'song__album', 'rating').all()
+            qs = SongReview.objects.select_related('user', 'song', 'song__album', 'rating').annotate(
+                is_liked=Exists(SongReviewLike.objects.filter(review=OuterRef('pk'), user=user))
+            )
             song = self.request.query_params.get('song')
-            user = _get_user_filter(self.request.query_params)
+            filter_user = _get_user_filter(self.request.query_params)
             if song:
                 qs = qs.filter(song__spotify_id=song)
-            if user == 'me':
-                qs = qs.filter(user=self.request.user)
-            elif user:
-                qs = qs.filter(user__username=user)
+            if filter_user == 'me':
+                qs = qs.filter(user=user)
+            elif filter_user:
+                qs = qs.filter(user__username=filter_user)
             return qs.order_by('-created_at')
-        return SongReview.objects.filter(user=self.request.user)
+        return SongReview.objects.filter(user=user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -150,3 +178,127 @@ class SongReviewViewSet(viewsets.ModelViewSet):
         if instance.user != self.request.user:
             raise permissions.PermissionDenied("You can only delete your own reviews")
         instance.delete()
+
+    @action(detail=True, methods=['post'], url_path='like')
+    def like(self, request, pk=None):
+        review = self.get_object()
+        _, created = SongReviewLike.objects.get_or_create(user=request.user, review=review)
+        return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'], url_path='like')
+    def unlike(self, request, pk=None):
+        review = self.get_object()
+        deleted, _ = SongReviewLike.objects.filter(user=request.user, review=review).delete()
+        if not deleted:
+            return Response({'detail': 'Not liked.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AlbumReviewCommentViewSet(viewsets.ModelViewSet):
+    """ViewSet for album review comments, replies, and likes"""
+
+    serializer_class = AlbumReviewCommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = AlbumReviewComment.objects.select_related('user', 'review').annotate(
+            likes_count=Count('likes', distinct=True),
+            replies_count=Count('replies', distinct=True),
+            is_liked=Exists(
+                AlbumReviewCommentLike.objects.filter(comment=OuterRef('pk'), user=user)
+            ),
+        )
+        review_id = self.request.query_params.get('review')
+        if review_id:
+            qs = qs.filter(review_id=review_id)
+
+        parent_param = self.request.query_params.get('parent')
+        if parent_param == 'null':
+            qs = qs.filter(parent__isnull=True)
+        elif parent_param:
+            qs = qs.filter(parent_id=parent_param)
+
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        if serializer.instance.user != self.request.user:
+            raise permissions.PermissionDenied("You can only edit your own comments.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.user != self.request.user:
+            raise permissions.PermissionDenied("You can only delete your own comments.")
+        instance.delete()
+
+    @action(detail=True, methods=['post'], url_path='like')
+    def like(self, request, pk=None):
+        comment = self.get_object()
+        _, created = AlbumReviewCommentLike.objects.get_or_create(user=request.user, comment=comment)
+        return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'], url_path='like')
+    def unlike(self, request, pk=None):
+        comment = self.get_object()
+        deleted, _ = AlbumReviewCommentLike.objects.filter(user=request.user, comment=comment).delete()
+        if not deleted:
+            return Response({'detail': 'Not liked.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SongReviewCommentViewSet(viewsets.ModelViewSet):
+    """ViewSet for song review comments, replies, and likes"""
+
+    serializer_class = SongReviewCommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = SongReviewComment.objects.select_related('user', 'review').annotate(
+            likes_count=Count('likes', distinct=True),
+            replies_count=Count('replies', distinct=True),
+            is_liked=Exists(
+                SongReviewCommentLike.objects.filter(comment=OuterRef('pk'), user=user)
+            ),
+        )
+        review_id = self.request.query_params.get('review')
+        if review_id:
+            qs = qs.filter(review_id=review_id)
+
+        parent_param = self.request.query_params.get('parent')
+        if parent_param == 'null':
+            qs = qs.filter(parent__isnull=True)
+        elif parent_param:
+            qs = qs.filter(parent_id=parent_param)
+
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        if serializer.instance.user != self.request.user:
+            raise permissions.PermissionDenied("You can only edit your own comments.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.user != self.request.user:
+            raise permissions.PermissionDenied("You can only delete your own comments.")
+        instance.delete()
+
+    @action(detail=True, methods=['post'], url_path='like')
+    def like(self, request, pk=None):
+        comment = self.get_object()
+        _, created = SongReviewCommentLike.objects.get_or_create(user=request.user, comment=comment)
+        return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'], url_path='like')
+    def unlike(self, request, pk=None):
+        comment = self.get_object()
+        deleted, _ = SongReviewCommentLike.objects.filter(user=request.user, comment=comment).delete()
+        if not deleted:
+            return Response({'detail': 'Not liked.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
