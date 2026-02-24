@@ -3,6 +3,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import Q
 from drf_spectacular.utils import extend_schema, inline_serializer
 from social.models import Follow, FeedActivity
 from social.serializers import FollowSerializer, FeedActivitySerializer
@@ -107,6 +109,21 @@ class FeedView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        username = self.request.query_params.get('username')
+
+        # User profile activity tab: this user's activity + "someone followed you".
+        if username:
+            target_user = get_object_or_404(User, username=username)
+            follow_ct = ContentType.objects.get_for_model(Follow)
+            follow_ids = Follow.objects.filter(following=target_user).values_list('id', flat=True)
+            return FeedActivity.objects.filter(
+                Q(user=target_user)
+                | Q(activity_type='follow', content_type=follow_ct, object_id__in=follow_ids)
+            ).select_related(
+                'user', 'content_type'
+            ).prefetch_related(
+                'content_object'
+            ).order_by('-created_at')[:100]
 
         # Get IDs of users being followed
         following_ids = user.following.values_list('following_id', flat=True)
@@ -119,6 +136,22 @@ class FeedView(generics.ListAPIView):
         ).prefetch_related(
             'content_object'
         ).order_by('-created_at')[:100]  # Limit to 100 most recent items
+
+
+@extend_schema(
+    responses={200: inline_serializer(
+        name='IsFollowingResponse',
+        fields={'is_following': serializers.BooleanField()}
+    )},
+    description="Check if the authenticated user follows a given user"
+)
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def is_following_user(request, username):
+    """Check if current user is following the given user"""
+    target = get_object_or_404(User, username=username)
+    is_following = Follow.objects.filter(follower=request.user, following=target).exists()
+    return Response({'is_following': is_following})
 
 
 class UserFollowersView(generics.ListAPIView):

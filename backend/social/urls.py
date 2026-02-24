@@ -12,6 +12,7 @@ urlpatterns = [
     path('feed/', views.FeedView.as_view(), name='feed'),
 
     # User followers/following lists
+    path('users/<str:username>/is-following/', views.is_following_user, name='is-following'),
     path('users/<str:username>/followers/', views.UserFollowersView.as_view(), name='user-followers'),
     path('users/<str:username>/following/', views.UserFollowingView.as_view(), name='user-following'),
 ]

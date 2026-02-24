@@ -9,6 +9,11 @@ from reviews.serializers import (
 from api.permissions import IsOwner
 
 
+def _get_user_filter(query_params):
+    """Support both legacy `user` and frontend `username` query params."""
+    return query_params.get('user') or query_params.get('username')
+
+
 class AlbumRatingViewSet(viewsets.ModelViewSet):
     """ViewSet for album ratings (CRUD)"""
 
@@ -19,14 +24,14 @@ class AlbumRatingViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             qs = AlbumRating.objects.select_related('user', 'album').all()
             album = self.request.query_params.get('album')
-            user = self.request.query_params.get('user')
+            user = _get_user_filter(self.request.query_params)
             if album:
                 qs = qs.filter(album__spotify_id=album)
             if user == 'me':
                 qs = qs.filter(user=self.request.user)
             elif user:
                 qs = qs.filter(user__username=user)
-            return qs
+            return qs.order_by('-created_at')
         return AlbumRating.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -55,14 +60,14 @@ class SongRatingViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             qs = SongRating.objects.select_related('user', 'song', 'song__album').all()
             song = self.request.query_params.get('song')
-            user = self.request.query_params.get('user')
+            user = _get_user_filter(self.request.query_params)
             if song:
                 qs = qs.filter(song__spotify_id=song)
             if user == 'me':
                 qs = qs.filter(user=self.request.user)
             elif user:
                 qs = qs.filter(user__username=user)
-            return qs
+            return qs.order_by('-created_at')
         return SongRating.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -89,14 +94,14 @@ class AlbumReviewViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             qs = AlbumReview.objects.select_related('user', 'album', 'rating').all()
             album = self.request.query_params.get('album')
-            user = self.request.query_params.get('user')
+            user = _get_user_filter(self.request.query_params)
             if album:
                 qs = qs.filter(album__spotify_id=album)
             if user == 'me':
                 qs = qs.filter(user=self.request.user)
             elif user:
                 qs = qs.filter(user__username=user)
-            return qs
+            return qs.order_by('-created_at')
         return AlbumReview.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -123,14 +128,14 @@ class SongReviewViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             qs = SongReview.objects.select_related('user', 'song', 'song__album', 'rating').all()
             song = self.request.query_params.get('song')
-            user = self.request.query_params.get('user')
+            user = _get_user_filter(self.request.query_params)
             if song:
                 qs = qs.filter(song__spotify_id=song)
             if user == 'me':
                 qs = qs.filter(user=self.request.user)
             elif user:
                 qs = qs.filter(user__username=user)
-            return qs
+            return qs.order_by('-created_at')
         return SongReview.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):

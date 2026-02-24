@@ -18,9 +18,7 @@ import type {
 } from '@/hooks/use-search';
 import type { Album, Artist, Song, User } from '@/types/api';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Normalizers — map raw Spotify shapes to our component-compatible types
-// ─────────────────────────────────────────────────────────────────────────────
+// Normalisers — map raw Spotify shapes to our component-compatible types
 
 function toAlbum(item: SpotifyAlbumResult): Album {
   return {
@@ -67,9 +65,7 @@ function toSong(item: SpotifyTrackResult): Song {
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
-// ─────────────────────────────────────────────────────────────────────────────
 
 function AlbumCarouselSkeleton() {
   return (
@@ -298,9 +294,6 @@ function NoResults({ query }: { query: string }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -594,9 +587,7 @@ export default function SearchScreen() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Utility
-// ─────────────────────────────────────────────────────────────────────────────
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const result: T[][] = [];

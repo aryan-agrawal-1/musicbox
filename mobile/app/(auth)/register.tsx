@@ -74,9 +74,6 @@ async function fadeIn(player: AudioPlayer): Promise<void> {
 
 type OnboardingStep = 'username' | 'account' | 'spotify' | 'tracks';
 
-// ---------------------------------------------------------------------------
-// DotIndicator
-// ---------------------------------------------------------------------------
 
 function DotIndicator({ step }: { step: 'username' | 'account' }) {
   const dot1Width = useSharedValue(step === 'username' ? 24 : 10);
@@ -117,9 +114,7 @@ function DotIndicator({ step }: { step: 'username' | 'account' }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Step 1 — Username
-// ---------------------------------------------------------------------------
+// Username
 
 interface UsernameStepProps {
   username: string;
@@ -280,9 +275,7 @@ function UsernameStep({ username, setUsername, onContinue }: UsernameStepProps) 
   );
 }
 
-// ---------------------------------------------------------------------------
-// Step 2 — Account creation
-// ---------------------------------------------------------------------------
+// Account creation
 
 const SIMPLE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -583,9 +576,7 @@ function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Step 3 — Spotify connect
-// ---------------------------------------------------------------------------
+// Spotify connect
 
 type ConnectPhase = 'idle' | 'auth' | 'syncing' | 'loading';
 
@@ -808,16 +799,12 @@ function SpotifyStep({ onConnected, onSkip }: SpotifyStepProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Step 4 — Recent track ratings
-// ---------------------------------------------------------------------------
+// Recent track ratings
 
 const TRACK_ENTRY_BASE_DELAY = 600;
 const TRACK_ENTRY_STAGGER = 200;
 
-// ---------------------------------------------------------------------------
 // Mini half-star display (read-only)
-// ---------------------------------------------------------------------------
 
 const MINI_STAR = 14;
 
@@ -1002,9 +989,7 @@ function TrackCard({
   );
 }
 
-// ---------------------------------------------------------------------------
 // Now playing indicator (3-bar animated waveform)
-// ---------------------------------------------------------------------------
 
 function NowPlayingIndicator() {
   const b1 = useSharedValue(0.4);
@@ -1214,9 +1199,7 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main shell — RegisterScreen
-// ---------------------------------------------------------------------------
+// RegisterScreen
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();

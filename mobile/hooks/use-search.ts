@@ -2,7 +2,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import type { User, ListeningHistory, PaginatedResponse } from '@/types/api';
 
-// ─── Raw Spotify API shapes (what the backend search endpoint actually returns) ───
+// Raw Spotify API shapes (what the backend search endpoint actually returns) ───
 
 interface SpotifyImage {
   url: string;

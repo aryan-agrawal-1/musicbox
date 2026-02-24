@@ -6,14 +6,12 @@ import { AuthContext } from '@/contexts/auth-context';
 import { Colors } from '@/constants/colors';
 import { SectionHeader } from '@/components/section-header';
 import { AlbumCard } from '@/components/album-card';
-import { ActivityCard } from '@/components/activity-card';
+import { ActivityCard, filterProfileActivities } from '@/components/activity-card';
 import { SkeletonCard } from '@/components/skeleton-card';
 import { usePopularAlbums, useNewReleases, useFriendFeed } from '@/hooks/use-feed';
 import type { FeedActivity } from '@/types/api';
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
-// ─────────────────────────────────────────────────────────────────────────────
 
 function AlbumCarouselSkeleton() {
   return (
@@ -135,10 +133,6 @@ function FriendFeedActivities({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const auth = use(AuthContext);
@@ -173,7 +167,8 @@ export default function FeedScreen() {
     setRefreshing(false);
   }
 
-  const allActivities = feedData?.pages.flatMap(p => p.results) ?? [];
+  const rawActivities = feedData?.pages.flatMap(p => p.results) ?? [];
+  const allActivities = filterProfileActivities(rawActivities, { showFollowActivities: false });
 
   return (
     <>

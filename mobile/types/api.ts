@@ -64,6 +64,7 @@ export interface AlbumRating {
   album: number; // album ID (integer FK)
   album_name: string;
   album_image: string | null;
+  album_spotify_id: string;
   rating: number; // 0.5–5.0 in 0.5 steps
   created_at: string;
   updated_at: string;
@@ -75,6 +76,7 @@ export interface AlbumReview {
   album: number;
   album_name: string;
   album_image: string | null;
+  album_spotify_id: string;
   rating: number | null; // rating ID
   rating_value: number | null;
   content: string; // NOTE: "content" not "text"
@@ -88,7 +90,10 @@ export interface SongRating {
   user: User;
   song: number;
   song_name: string;
+  song_spotify_id: string;
   album_name: string;
+  album_image: string | null;
+  album_spotify_id: string;
   rating: number;
   created_at: string;
   updated_at: string;
@@ -100,6 +105,8 @@ export interface SongReview {
   song: number;
   song_name: string;
   album_name: string;
+  album_image: string | null;
+  album_spotify_id: string;
   rating: number | null;
   rating_value: number | null;
   content: string;

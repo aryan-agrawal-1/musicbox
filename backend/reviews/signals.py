@@ -18,11 +18,13 @@ def update_album_rating_on_save(sender, instance, created, **kwargs):
         instance.user.__class__.objects.filter(pk=instance.user.pk).update(
             total_albums_rated=F('total_albums_rated') + 1
         )
-        FeedActivity.objects.create(
-            user=instance.user,
-            activity_type='album_rating',
-            content_object=instance
-        )
+        # Skip activity if a review already exists (review activity already shows the rating)
+        if not AlbumReview.objects.filter(user=instance.user, album=instance.album).exists():
+            FeedActivity.objects.create(
+                user=instance.user,
+                activity_type='album_rating',
+                content_object=instance
+            )
 
 
 @receiver(post_delete, sender=AlbumRating)
@@ -52,11 +54,13 @@ def update_song_rating_on_save(sender, instance, created, **kwargs):
         instance.user.__class__.objects.filter(pk=instance.user.pk).update(
             total_songs_rated=F('total_songs_rated') + 1
         )
-        FeedActivity.objects.create(
-            user=instance.user,
-            activity_type='song_rating',
-            content_object=instance
-        )
+        # Skip activity if a review already exists (review activity already shows the rating)
+        if not SongReview.objects.filter(user=instance.user, song=instance.song).exists():
+            FeedActivity.objects.create(
+                user=instance.user,
+                activity_type='song_rating',
+                content_object=instance
+            )
 
 
 @receiver(post_delete, sender=SongRating)
