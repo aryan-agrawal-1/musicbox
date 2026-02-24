@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
-import { View, Text, SectionList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { use, useState, useEffect, useRef } from 'react';
+import { View, Text, SectionList, ScrollView, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { Link, Stack } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-
 import { Colors } from '@/constants/colors';
 import { SkeletonCard } from '@/components/skeleton-card';
+import { SpotifyConnectPanel } from '@/components/spotify-connect-panel';
 import { useDiary, useSyncListeningHistory } from '@/hooks/use-diary';
 import { formatDiaryDate } from '@/lib/format';
+import { connectSpotify } from '@/lib/spotify';
+import { AuthContext } from '@/contexts/auth-context';
 import type { ListeningHistory } from '@/types/api';
 
 // 5 min before auto-syncing on mount
@@ -163,30 +165,51 @@ function DiarySkeleton() {
 
 // Empty state
 
-function DiaryEmpty() {
+type ConnectPhase = 'idle' | 'auth' | 'syncing';
+
+interface DiaryEmptyProps {
+  isSpotifyConnected: boolean;
+  connectPhase: ConnectPhase;
+  onConnect: () => void;
+}
+
+function DiaryEmpty({ isSpotifyConnected, connectPhase, onConnect }: DiaryEmptyProps) {
+  const isConnecting = connectPhase !== 'idle';
+
+  if (isSpotifyConnected) {
+    return (
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ alignItems: 'center', paddingTop: 64, gap: 12, paddingHorizontal: 32 }}
+      >
+        <Image
+          source="sf:arrow.clockwise"
+          style={{ width: 36, height: 36, opacity: 0.2 }}
+          tintColor={Colors.textPrimary}
+        />
+        <Text style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary, textAlign: 'center' }}>
+          No listening history yet
+        </Text>
+        <Text style={{ fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
+          Tap the sync button above to import your recent tracks from Spotify.
+        </Text>
+      </ScrollView>
+    );
+  }
+
   return (
-    <View style={{ alignItems: 'center', paddingTop: 80, gap: 12, paddingHorizontal: 32 }}>
-      <Image
-        source="sf:book.fill"
-        style={{ width: 40, height: 40, opacity: 0.25 }}
-        tintColor={Colors.textPrimary}
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={{ paddingTop: 48, paddingBottom: 48 }}
+    >
+      <SpotifyConnectPanel
+        title="Connect Spotify"
+        description="Link your Spotify account to start tracking your listening history."
+        isConnecting={isConnecting}
+        loadingLabel={connectPhase === 'auth' ? 'Opening Spotify…' : 'Syncing your history…'}
+        onConnect={onConnect}
       />
-      <Text
-        style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary, textAlign: 'center' }}
-      >
-        No listening history yet
-      </Text>
-      <Text
-        style={{
-          fontSize: 14,
-          color: Colors.textSecondary,
-          textAlign: 'center',
-          lineHeight: 20,
-        }}
-      >
-        Connect Spotify and tap sync to start tracking your music.
-      </Text>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -221,7 +244,9 @@ type DiarySection = {
 
 export default function DiaryScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const [connectPhase, setConnectPhase] = useState<ConnectPhase>('idle');
   const hasSyncedOnMount = useRef(false);
+  const auth = use(AuthContext);
 
   const {
     data,
@@ -273,29 +298,47 @@ export default function DiaryScreen() {
     syncMutation.mutate();
   }
 
+  async function handleConnectSpotify() {
+    setConnectPhase('auth');
+    try {
+      const connected = await connectSpotify();
+      if (connected) {
+        setConnectPhase('syncing');
+        await auth.refreshUser();
+        await syncMutation.mutateAsync().catch(() => null);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setConnectPhase('idle');
+    }
+  }
+
   return (
     <>
       <Stack.Screen
         options={{
           title: 'Diary',
-          headerRight: () => (
-            <Pressable
-              onPress={handleSync}
-              disabled={syncMutation.isPending}
-              hitSlop={8}
-              style={{ opacity: syncMutation.isPending ? 0.5 : 1 }}
-            >
-              {syncMutation.isPending ? (
-                <ActivityIndicator size="small" color={Colors.accent} />
-              ) : (
-                <Image
-                  source="sf:arrow.clockwise"
-                  style={{ width: 20, height: 20 }}
-                  tintColor={Colors.accent}
-                />
-              )}
-            </Pressable>
-          ),
+          headerRight: auth.user?.is_spotify_connected
+            ? () => (
+                <Pressable
+                  onPress={handleSync}
+                  disabled={syncMutation.isPending}
+                  hitSlop={8}
+                  style={{ opacity: syncMutation.isPending ? 0.5 : 1 }}
+                >
+                  {syncMutation.isPending ? (
+                    <ActivityIndicator size="small" color={Colors.accent} />
+                  ) : (
+                    <Image
+                      source="sf:arrow.clockwise"
+                      style={{ width: 20, height: 20 }}
+                      tintColor={Colors.accent}
+                    />
+                  )}
+                </Pressable>
+              )
+            : undefined,
         }}
       />
 
@@ -304,7 +347,11 @@ export default function DiaryScreen() {
       ) : error ? (
         <DiaryError onRetry={refetch} />
       ) : allEntries.length === 0 ? (
-        <DiaryEmpty />
+        <DiaryEmpty
+          isSpotifyConnected={auth.user?.is_spotify_connected ?? false}
+          connectPhase={connectPhase}
+          onConnect={handleConnectSpotify}
+        />
       ) : (
         <SectionList
           sections={sections}

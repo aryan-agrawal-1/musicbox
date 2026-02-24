@@ -10,6 +10,9 @@ class User(AbstractUser):
     avatar_url = models.URLField(blank=True, null=True)
     location = models.CharField(max_length=100, blank=True)
 
+    # Username change tracking
+    username_last_changed = models.DateTimeField(null=True, blank=True)
+
     # Spotify integration
     spotify_user_id = models.CharField(max_length=100, unique=True, null=True, blank=True, db_index=True)
     spotify_access_token = models.CharField(max_length=500, null=True, blank=True)

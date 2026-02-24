@@ -12,9 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
-import Constants from 'expo-constants';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -38,6 +36,8 @@ import { AuthContext } from '@/contexts/auth-context';
 import { apiFetch, ApiError } from '@/lib/api';
 import { tokenStore } from '@/lib/auth';
 import { onboardingStore } from '@/lib/onboarding-store';
+import { connectSpotify } from '@/lib/spotify';
+import { SpotifyConnectPanel } from '@/components/spotify-connect-panel';
 import { Colors } from '@/constants/colors';
 import type { AuthTokens, ListeningHistory, PaginatedResponse } from '@/types/api';
 
@@ -619,15 +619,8 @@ function SpotifyStep({ onConnected, onSkip }: SpotifyStepProps) {
     setPhase('auth');
     setError(null);
     try {
-      const scheme = Constants.expoConfig?.scheme ?? 'muze';
-      const { auth_url } = await apiFetch<{ auth_url: string }>(
-        `/api/v1/auth/spotify/connect/?redirect_scheme=${scheme}`
-      );
-      const result = await WebBrowser.openAuthSessionAsync(
-        auth_url,
-        `${scheme}://spotify-callback`
-      );
-      if (result.type === 'success') {
+      const connected = await connectSpotify();
+      if (connected) {
         setPhase('syncing');
         await apiFetch('/api/v1/music/listening-history/sync/', { method: 'POST' });
         setPhase('loading');
@@ -657,144 +650,23 @@ function SpotifyStep({ onConnected, onSkip }: SpotifyStepProps) {
         flex: 1,
         paddingTop: insets.top,
         paddingBottom: insets.bottom + 32,
-        paddingHorizontal: 32,
         justifyContent: 'center',
-        alignItems: 'center',
       }}
     >
-      {/* Glow */}
-      <View
-        style={{
-          position: 'absolute',
-          width: 200,
-          height: 200,
-          borderRadius: 100,
-          backgroundColor: 'rgba(29, 185, 84, 0.07)',
-        }}
+      <SpotifyConnectPanel
+        title="One more thing."
+        description="Connect Spotify to unlock your listening history and personalised picks."
+        isConnecting={isConnecting}
+        loadingLabel={loadingLabel}
+        connectingSubtitle={
+          phase === 'syncing'
+            ? "This may take a moment if your tracks\naren't in our library yet."
+            : undefined
+        }
+        error={error}
+        onConnect={handleConnect}
+        onSkip={onSkip}
       />
-
-      {/* Spotify circle */}
-      <View
-        style={{
-          width: 72,
-          height: 72,
-          borderRadius: 36,
-          backgroundColor: Colors.spotifyGreen,
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 24,
-        }}
-      >
-        <Text style={{ fontSize: 30, fontWeight: '800', color: '#000000' }}>S</Text>
-      </View>
-
-      <Text
-        style={{
-          fontSize: 28,
-          fontWeight: '700',
-          color: Colors.textPrimary,
-          textAlign: 'center',
-          letterSpacing: -0.5,
-          marginBottom: 12,
-        }}
-      >
-        One more thing.
-      </Text>
-      <Text
-        style={{
-          fontSize: 16,
-          color: Colors.textSecondary,
-          textAlign: 'center',
-          lineHeight: 22,
-          marginBottom: 32,
-        }}
-      >
-        Connect Spotify to unlock your listening history and personalised picks.
-      </Text>
-
-      {/* Benefits */}
-      <View style={{ gap: 10, width: '100%', marginBottom: 40 }}>
-        {[
-          'Import your recent listening',
-          'Auto-sync new listens daily',
-          'Rate tracks directly from history',
-        ].map(benefit => (
-          <View key={benefit} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Text style={{ fontSize: 16, color: Colors.positive }}>✓</Text>
-            <Text style={{ fontSize: 15, color: Colors.textSecondary }}>{benefit}</Text>
-          </View>
-        ))}
-      </View>
-
-      {error && (
-        <Text
-          style={{
-            fontSize: 13,
-            color: Colors.destructive,
-            marginBottom: 12,
-            textAlign: 'center',
-          }}
-        >
-          {error}
-        </Text>
-      )}
-
-      {/* Loading state */}
-      {isConnecting ? (
-        <View style={{ width: '100%', alignItems: 'center', gap: 14 }}>
-          <ActivityIndicator color={Colors.spotifyGreen} size="large" />
-          <Animated.Text
-            key={loadingLabel}
-            entering={FadeInDown.duration(280)}
-            style={{
-              fontSize: 16,
-              fontWeight: '600',
-              color: Colors.textPrimary,
-              textAlign: 'center',
-            }}
-          >
-            {loadingLabel}
-          </Animated.Text>
-          {phase === 'syncing' && (
-            <Text
-              style={{
-                fontSize: 13,
-                color: Colors.textTertiary,
-                textAlign: 'center',
-                lineHeight: 18,
-              }}
-            >
-              This may take a moment if your tracks{'\n'}aren't in our library yet.
-            </Text>
-          )}
-        </View>
-      ) : (
-        <>
-          {/* Connect button */}
-          <Pressable
-            onPress={handleConnect}
-            style={({ pressed }) => ({
-              height: 52,
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              backgroundColor: Colors.spotifyGreen,
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              opacity: pressed ? 0.8 : 1,
-            })}
-          >
-            <Text style={{ fontSize: 17, fontWeight: '600', color: '#000000' }}>
-              Connect with Spotify
-            </Text>
-          </Pressable>
-
-          {/* Skip */}
-          <Pressable onPress={onSkip} style={{ marginTop: 20 }} hitSlop={12}>
-            <Text style={{ fontSize: 14, color: Colors.textTertiary }}>Skip for now →</Text>
-          </Pressable>
-        </>
-      )}
     </View>
   );
 }

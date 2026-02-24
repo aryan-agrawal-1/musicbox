@@ -250,15 +250,21 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
   const isReview = activity.activity_type === 'album_review' || activity.activity_type === 'song_review';
   const reviewId = (data.id ?? '') as string | number;
 
+  const songSpotifyId = (data.song_spotify_id ?? '') as string;
+
   function handleCardPress() {
     if (isReview && reviewId) {
       router.push(`/review/${reviewId}`);
+    } else if (activity.activity_type === 'song_rating' && songSpotifyId) {
+      router.push(`/track/${songSpotifyId}`);
     } else if (isRatingOrReview && albumSpotifyId) {
       router.push(`/album/${albumSpotifyId}`);
     }
   }
 
   const timestamp = formatRelativeTime(activity.created_at);
+
+  const isSongActivity = activity.activity_type === 'song_rating' || activity.activity_type === 'song_review';
 
   /** Shared album art + metadata block used by both rating and review variants */
   function AlbumMeta() {
@@ -271,7 +277,9 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
               style={{ flex: 1, fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
               numberOfLines={1}
             >
-              {(data.album_name ?? data.song_name ?? '') as string}
+              {isSongActivity
+                ? (data.song_name ?? '') as string
+                : (data.album_name ?? '') as string}
             </Text>
             {!showHeader && (
               <Text style={{ fontSize: 12, color: Colors.textTertiary, paddingTop: 2 }}>

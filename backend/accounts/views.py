@@ -15,7 +15,7 @@ import secrets
 import json
 import base64
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
-from .serializers import UserSerializer, UserRegistrationSerializer, UserProfileSerializer
+from .serializers import UserSerializer, UserRegistrationSerializer, UserProfileSerializer, ChangePasswordSerializer
 
 User = get_user_model()
 
@@ -52,13 +52,29 @@ class UserRegistrationView(generics.CreateAPIView):
     serializer_class = UserRegistrationSerializer
 
 
-class CurrentUserView(generics.RetrieveUpdateAPIView):
-    """Get and update current user profile"""
+class CurrentUserView(generics.RetrieveUpdateDestroyAPIView):
+    """Get, update, and delete current user profile"""
     permission_classes = [IsAuthenticated]
     serializer_class = UserProfileSerializer
 
     def get_object(self):
         return self.request.user
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """Change the authenticated user's password"""
+    serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+    serializer.is_valid(raise_exception=True)
+    request.user.set_password(serializer.validated_data['new_password'])
+    request.user.save()
+    return Response({'message': 'Password changed successfully'})
 
 
 @api_view(['GET'])

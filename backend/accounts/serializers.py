@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.utils import timezone
+from datetime import timedelta
 from drf_spectacular.utils import extend_schema_field
 
 User = get_user_model()
@@ -60,12 +62,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'total_albums_rated', 'total_songs_rated', 'total_reviews',
             'is_spotify_connected', 'spotify_user_id', 'spotify_connected_at',
             'followers_count', 'following_count',
-            'created_at'
+            'created_at', 'username_last_changed'
         ]
         read_only_fields = [
             'id', 'total_albums_rated', 'total_songs_rated', 'total_reviews',
             'spotify_user_id', 'spotify_connected_at', 'created_at',
-            'is_spotify_connected', 'followers_count', 'following_count'
+            'is_spotify_connected', 'followers_count', 'following_count',
+            'username_last_changed'
         ]
 
     @extend_schema_field(serializers.IntegerField)
@@ -75,3 +78,40 @@ class UserProfileSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.IntegerField)
     def get_following_count(self, obj) -> int:
         return obj.following.count()
+
+    def validate_username(self, value):
+        instance = self.instance
+        if instance and value != instance.username:
+            if instance.username_last_changed:
+                next_allowed = instance.username_last_changed + timedelta(days=30)
+                if timezone.now() < next_allowed:
+                    next_date = next_allowed.strftime('%B %-d, %Y')
+                    raise serializers.ValidationError(
+                        f"You can next change your username on {next_date}."
+                    )
+        return value
+
+    def update(self, instance, validated_data):
+        new_username = validated_data.get('username')
+        if new_username and new_username != instance.username:
+            validated_data['username_last_changed'] = timezone.now()
+        return super().update(instance, validated_data)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Serializer for password change requiring current password verification"""
+
+    current_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, validators=[validate_password])
+    new_password_confirm = serializers.CharField(required=True)
+
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def validate(self, data):
+        if data['new_password'] != data['new_password_confirm']:
+            raise serializers.ValidationError({"new_password_confirm": "Passwords don't match."})
+        return data

@@ -7,6 +7,7 @@ export interface User {
   bio: string | null;
   avatar_url: string | null;
   location: string | null;
+  username_last_changed: string | null;
   is_spotify_connected: boolean;
   spotify_user_id: string | null;
   spotify_connected_at: string | null;
