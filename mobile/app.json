@@ -34,7 +34,13 @@
       "expo-image",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Muze to access your photos to set a profile picture."
+        }
+      ]
     ]
   }
 }

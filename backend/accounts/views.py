@@ -14,6 +14,8 @@ from spotipy.oauth2 import SpotifyOAuth
 import secrets
 import json
 import base64
+import uuid
+import boto3
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
 from .serializers import UserSerializer, UserRegistrationSerializer, UserProfileSerializer, ChangePasswordSerializer
 
@@ -132,6 +134,41 @@ class UserSearchView(generics.ListAPIView):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+
+# Avatar Upload Views
+
+_ALLOWED_AVATAR_TYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/heic'}
+_EXT_MAP = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic'}
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def get_avatar_upload_url(request):
+    """Return a presigned PUT URL for uploading a profile picture directly to R2."""
+    content_type = request.data.get('content_type', 'image/jpeg')
+    if content_type not in _ALLOWED_AVATAR_TYPES:
+        return Response({'error': 'Unsupported file type.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    ext = _EXT_MAP[content_type]
+    key = f"avatars/{request.user.id}/{uuid.uuid4()}.{ext}"
+
+    s3 = boto3.client(
+        's3',
+        endpoint_url=f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+        region_name='auto',
+    )
+
+    upload_url = s3.generate_presigned_url(
+        'put_object',
+        Params={'Bucket': settings.R2_BUCKET_NAME, 'Key': key, 'ContentType': content_type},
+        ExpiresIn=300,
+    )
+    public_url = f"{settings.R2_PUBLIC_URL}/{key}"
+
+    return Response({'upload_url': upload_url, 'public_url': public_url})
 
 
 # Spotify OAuth Views

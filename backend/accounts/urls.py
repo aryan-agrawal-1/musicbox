@@ -13,6 +13,9 @@ urlpatterns = [
     path('users/search/', views.UserSearchView.as_view(), name='user-search'),
     path('users/<str:username>/', views.UserProfileView.as_view(), name='user-profile'),
 
+    # Avatar upload
+    path('avatar/upload-url/', views.get_avatar_upload_url, name='avatar-upload-url'),
+
     # Spotify OAuth
     path('spotify/connect/', views.spotify_connect, name='spotify-connect'),
     path('spotify/callback/', views.spotify_callback, name='spotify-callback'),

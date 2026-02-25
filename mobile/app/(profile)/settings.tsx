@@ -13,7 +13,6 @@ import { Image } from 'expo-image';
 import { useMutation } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
 import { Colors } from '@/constants/colors';
@@ -223,7 +222,7 @@ export default function SettingsScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.85,
@@ -233,25 +232,34 @@ export default function SettingsScreen() {
 
     setAvatarLoading(true);
     try {
-      const token = await SecureStore.getItemAsync('access_token');
       const asset = result.assets[0];
-      const formData = new FormData();
-      formData.append('avatar', {
-        uri: asset.uri,
-        name: 'avatar.jpg',
-        type: asset.mimeType ?? 'image/jpeg',
-      } as unknown as File);
+      const mimeType = asset.mimeType ?? 'image/jpeg';
 
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/v1/auth/me/`,
-        {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        },
-      );
+      // Step 1: Get presigned PUT URL from Django
+      const { upload_url, public_url } = await apiFetch<{
+        upload_url: string;
+        public_url: string;
+      }>('/api/v1/auth/avatar/upload-url/', {
+        method: 'POST',
+        body: JSON.stringify({ content_type: mimeType }),
+      });
 
-      if (!res.ok) throw new Error('Upload failed');
+      // Step 2: Upload image binary directly to R2
+      const imageResponse = await fetch(asset.uri);
+      const blob = await imageResponse.blob();
+      const uploadResponse = await fetch(upload_url, {
+        method: 'PUT',
+        body: blob,
+        headers: { 'Content-Type': mimeType },
+      });
+      if (!uploadResponse.ok) throw new Error('Upload to R2 failed');
+
+      // Step 3: Save the public URL in Django
+      await apiFetch<User>('/api/v1/auth/me/', {
+        method: 'PATCH',
+        body: JSON.stringify({ avatar_url: public_url }),
+      });
+
       await auth.refreshUser();
 
       if (process.env.EXPO_OS === 'ios') {
@@ -269,7 +277,7 @@ export default function SettingsScreen() {
     try {
       await apiFetch<User>('/api/v1/auth/me/', {
         method: 'PATCH',
-        body: JSON.stringify({ avatar: null }),
+        body: JSON.stringify({ avatar_url: null }),
       });
       await auth.refreshUser();
     } catch {

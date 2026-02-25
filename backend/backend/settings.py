@@ -186,6 +186,13 @@ SPOTIFY_REDIRECT_URI = config('SPOTIFY_REDIRECT_URI', default='http://localhost:
 # Frontend URL
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
+# Cloudflare R2 Configuration
+R2_ACCOUNT_ID = config('R2_ACCOUNT_ID', default='')
+R2_ACCESS_KEY_ID = config('R2_ACCESS_KEY_ID', default='')
+R2_SECRET_ACCESS_KEY = config('R2_SECRET_ACCESS_KEY', default='')
+R2_BUCKET_NAME = config('R2_BUCKET_NAME', default='')
+R2_PUBLIC_URL = config('R2_PUBLIC_URL', default='')
+
 # DRF Spectacular Settings
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Music Social Platform API',
