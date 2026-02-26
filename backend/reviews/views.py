@@ -113,6 +113,8 @@ class AlbumReviewViewSet(viewsets.ModelViewSet):
             elif filter_user:
                 qs = qs.filter(user__username=filter_user)
             return qs.order_by('-created_at')
+        if self.action in ['like', 'unlike']:
+            return AlbumReview.objects.all()
         return AlbumReview.objects.filter(user=user)
 
     def perform_create(self, serializer):
@@ -128,15 +130,12 @@ class AlbumReviewViewSet(viewsets.ModelViewSet):
             raise permissions.PermissionDenied("You can only delete your own reviews")
         instance.delete()
 
-    @action(detail=True, methods=['post'], url_path='like')
+    @action(detail=True, methods=['post', 'delete'], url_path='like')
     def like(self, request, pk=None):
         review = self.get_object()
-        _, created = AlbumReviewLike.objects.get_or_create(user=request.user, review=review)
-        return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
-    @action(detail=True, methods=['delete'], url_path='like')
-    def unlike(self, request, pk=None):
-        review = self.get_object()
+        if request.method == 'POST':
+            _, created = AlbumReviewLike.objects.get_or_create(user=request.user, review=review)
+            return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         deleted, _ = AlbumReviewLike.objects.filter(user=request.user, review=review).delete()
         if not deleted:
             return Response({'detail': 'Not liked.'}, status=status.HTTP_404_NOT_FOUND)
@@ -164,6 +163,8 @@ class SongReviewViewSet(viewsets.ModelViewSet):
             elif filter_user:
                 qs = qs.filter(user__username=filter_user)
             return qs.order_by('-created_at')
+        if self.action in ['like', 'unlike']:
+            return SongReview.objects.all()
         return SongReview.objects.filter(user=user)
 
     def perform_create(self, serializer):
@@ -179,15 +180,12 @@ class SongReviewViewSet(viewsets.ModelViewSet):
             raise permissions.PermissionDenied("You can only delete your own reviews")
         instance.delete()
 
-    @action(detail=True, methods=['post'], url_path='like')
+    @action(detail=True, methods=['post', 'delete'], url_path='like')
     def like(self, request, pk=None):
         review = self.get_object()
-        _, created = SongReviewLike.objects.get_or_create(user=request.user, review=review)
-        return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
-    @action(detail=True, methods=['delete'], url_path='like')
-    def unlike(self, request, pk=None):
-        review = self.get_object()
+        if request.method == 'POST':
+            _, created = SongReviewLike.objects.get_or_create(user=request.user, review=review)
+            return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         deleted, _ = SongReviewLike.objects.filter(user=request.user, review=review).delete()
         if not deleted:
             return Response({'detail': 'Not liked.'}, status=status.HTTP_404_NOT_FOUND)
@@ -234,15 +232,12 @@ class AlbumReviewCommentViewSet(viewsets.ModelViewSet):
             raise permissions.PermissionDenied("You can only delete your own comments.")
         instance.delete()
 
-    @action(detail=True, methods=['post'], url_path='like')
+    @action(detail=True, methods=['post', 'delete'], url_path='like')
     def like(self, request, pk=None):
         comment = self.get_object()
-        _, created = AlbumReviewCommentLike.objects.get_or_create(user=request.user, comment=comment)
-        return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
-    @action(detail=True, methods=['delete'], url_path='like')
-    def unlike(self, request, pk=None):
-        comment = self.get_object()
+        if request.method == 'POST':
+            _, created = AlbumReviewCommentLike.objects.get_or_create(user=request.user, comment=comment)
+            return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         deleted, _ = AlbumReviewCommentLike.objects.filter(user=request.user, comment=comment).delete()
         if not deleted:
             return Response({'detail': 'Not liked.'}, status=status.HTTP_404_NOT_FOUND)
@@ -289,15 +284,12 @@ class SongReviewCommentViewSet(viewsets.ModelViewSet):
             raise permissions.PermissionDenied("You can only delete your own comments.")
         instance.delete()
 
-    @action(detail=True, methods=['post'], url_path='like')
+    @action(detail=True, methods=['post', 'delete'], url_path='like')
     def like(self, request, pk=None):
         comment = self.get_object()
-        _, created = SongReviewCommentLike.objects.get_or_create(user=request.user, comment=comment)
-        return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
-    @action(detail=True, methods=['delete'], url_path='like')
-    def unlike(self, request, pk=None):
-        comment = self.get_object()
+        if request.method == 'POST':
+            _, created = SongReviewCommentLike.objects.get_or_create(user=request.user, comment=comment)
+            return Response({'liked': True}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         deleted, _ = SongReviewCommentLike.objects.filter(user=request.user, comment=comment).delete()
         if not deleted:
             return Response({'detail': 'Not liked.'}, status=status.HTTP_404_NOT_FOUND)

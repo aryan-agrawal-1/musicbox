@@ -35,10 +35,25 @@ class FeedActivitySerializer(serializers.ModelSerializer):
             AlbumRatingSerializer, SongRatingSerializer,
             AlbumReviewSerializer, SongReviewSerializer
         )
+        from reviews.models import AlbumReviewLike, SongReviewLike
 
         content_object = obj.content_object
         if not content_object:
             return None
+
+        # Annotate is_liked on review instances so the serializer can include it.
+        # (The review viewsets annotate this via queryset; here we set it manually.)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            user = request.user
+            if obj.activity_type == 'album_review':
+                content_object.is_liked = AlbumReviewLike.objects.filter(
+                    review=content_object, user=user
+                ).exists()
+            elif obj.activity_type == 'song_review':
+                content_object.is_liked = SongReviewLike.objects.filter(
+                    review=content_object, user=user
+                ).exists()
 
         serializer_map = {
             'album_rating': AlbumRatingSerializer,

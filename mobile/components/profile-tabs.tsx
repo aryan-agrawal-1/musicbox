@@ -321,7 +321,7 @@ export function ReviewsTab({ username }: { username: string }) {
             .duration(300)
             .springify()}
         >
-          <ReviewCard review={review} />
+          <ReviewCard review={review} type={'song' in review ? 'song' : 'album'} />
         </Animated.View>
       ))}
       {hasNextPage && (

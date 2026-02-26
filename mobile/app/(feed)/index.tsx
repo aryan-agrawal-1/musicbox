@@ -184,9 +184,6 @@ export default function FeedScreen() {
           />
         }
       >
-        <Pressable onPress={() => auth.logout()} style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
-          <Text style={{ fontSize: 14, color: Colors.textSecondary }}>Logout</Text>
-        </Pressable>
 
         {/* ── Most Popular ── */}
         <View>

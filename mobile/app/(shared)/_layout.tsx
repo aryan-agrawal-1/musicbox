@@ -10,6 +10,16 @@ export default function SharedLayout() {
       <Stack.Screen name="user/[username]" />
       <Stack.Screen name="review/[id]" />
       <Stack.Screen
+        name="review/comments"
+        options={{
+          presentation: 'formSheet',
+          sheetGrabberVisible: true,
+          sheetAllowedDetents: [0.6, 1.0],
+          contentStyle: { backgroundColor: 'transparent' },
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="rate"
         options={{
           presentation: 'formSheet',

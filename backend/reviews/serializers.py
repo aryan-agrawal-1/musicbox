@@ -77,6 +77,7 @@ class SongReviewSerializer(serializers.ModelSerializer):
 
     user = UserSerializer(read_only=True)
     song_name = serializers.CharField(source='song.name', read_only=True)
+    song_spotify_id = serializers.CharField(source='song.spotify_id', read_only=True)
     album_name = serializers.CharField(source='song.album.name', read_only=True)
     album_image = serializers.URLField(source='song.album.image_url', read_only=True)
     album_spotify_id = serializers.CharField(source='song.album.spotify_id', read_only=True)
@@ -87,7 +88,7 @@ class SongReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = SongReview
         fields = [
-            'id', 'user', 'song', 'song_name', 'album_name', 'album_image', 'album_spotify_id',
+            'id', 'user', 'song', 'song_name', 'song_spotify_id', 'album_name', 'album_image', 'album_spotify_id',
             'rating', 'rating_value', 'content', 'likes_count', 'is_liked', 'comments_count',
             'created_at', 'updated_at'
         ]

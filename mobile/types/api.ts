@@ -82,6 +82,8 @@ export interface AlbumReview {
   rating_value: number | null;
   content: string; // NOTE: "content" not "text"
   likes_count: number;
+  is_liked: boolean;
+  comments_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +107,7 @@ export interface SongReview {
   user: User;
   song: number;
   song_name: string;
+  song_spotify_id: string;
   album_name: string;
   album_image: string | null;
   album_spotify_id: string;
@@ -112,9 +115,26 @@ export interface SongReview {
   rating_value: number | null;
   content: string;
   likes_count: number;
+  is_liked: boolean;
+  comments_count: number;
   created_at: string;
   updated_at: string;
 }
+
+export interface AlbumReviewComment {
+  id: number;
+  user: User;
+  review: number;
+  parent: number | null;
+  content: string;
+  likes_count: number;
+  is_liked: boolean;
+  replies_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SongReviewComment = AlbumReviewComment; // identical shape
 
 export interface FeedActivity {
   id: number;

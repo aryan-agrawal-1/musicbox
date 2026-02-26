@@ -1,13 +1,18 @@
+import { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 import { Colors } from '@/constants/colors';
 import { AvatarImage } from '@/components/avatar-image';
 import { StarRating } from '@/components/star-rating';
+import { apiFetch } from '@/lib/api';
 import type { AlbumReview, SongReview } from '@/types/api';
 
 interface ReviewCardProps {
   review: AlbumReview | SongReview;
+  type?: 'album' | 'song';
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -28,12 +33,35 @@ function displayName(user: (AlbumReview | SongReview)['user']): string {
   return full || user.username;
 }
 
-export function ReviewCard({ review }: ReviewCardProps) {
+export function ReviewCard({ review, type = 'album' }: ReviewCardProps) {
   const router = useRouter();
+  const [isLiked, setIsLiked] = useState(review.is_liked);
+  const [likesCount, setLikesCount] = useState(review.likes_count);
+
+  const reviewBase = type === 'album'
+    ? '/api/v1/reviews/albums/reviews'
+    : '/api/v1/reviews/songs/reviews';
+
+  async function handleLike() {
+    if (process.env.EXPO_OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    const prev = { isLiked, likesCount };
+    setIsLiked(!isLiked);
+    setLikesCount(likesCount + (isLiked ? -1 : 1));
+    try {
+      await apiFetch<void>(`${reviewBase}/${review.id}/like/`, {
+        method: isLiked ? 'DELETE' : 'POST',
+      });
+    } catch {
+      setIsLiked(prev.isLiked);
+      setLikesCount(prev.likesCount);
+    }
+  }
 
   return (
     <Pressable
-      onPress={() => router.push(`/review/${review.id}`)}
+      onPress={() => router.push({ pathname: '/review/[id]', params: { id: String(review.id), type } })}
       style={({ pressed }) => ({
         backgroundColor: Colors.surfaceElevated,
         borderRadius: 12,
@@ -61,15 +89,34 @@ export function ReviewCard({ review }: ReviewCardProps) {
         </Text>
       </View>
 
-      {/* Review excerpt */}
-      <Text style={{ fontSize: 14, color: Colors.textSecondary, lineHeight: 20 }} numberOfLines={2}>
+      {/* Review excerpt — capped at 3 lines */}
+      <Text style={{ fontSize: 14, color: Colors.textSecondary, lineHeight: 20 }} numberOfLines={3}>
         {review.content}
       </Text>
 
-      {/* Likes */}
-      <Text style={{ fontSize: 12, color: Colors.textTertiary, textAlign: 'right' }}>
-        ♥ {review.likes_count}
-      </Text>
+      {/* Like button */}
+      <Pressable
+        onPress={handleLike}
+        hitSlop={10}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 5,
+          alignSelf: 'flex-start',
+          opacity: pressed ? 0.6 : 1,
+        })}
+      >
+        <Image
+          source={isLiked ? 'sf:heart.fill' : 'sf:heart'}
+          style={{ width: 16, height: 16 }}
+          tintColor={isLiked ? '#FF3B30' : Colors.textTertiary}
+        />
+        {likesCount > 0 && (
+          <Text style={{ fontSize: 13, color: isLiked ? '#FF3B30' : Colors.textTertiary }}>
+            {likesCount}
+          </Text>
+        )}
+      </Pressable>
     </Pressable>
   );
 }

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors } from '@/constants/colors';
 import { AvatarImage } from '@/components/avatar-image';
 import { StarRating } from '@/components/star-rating';
+import { apiFetch } from '@/lib/api';
 import type { FeedActivity, User } from '@/types/api';
 
 interface ActivityCardProps {
@@ -211,6 +212,30 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
   const isRatingOrReview = !isFollow;
   const albumSpotifyId = (data.album_spotify_id ?? '') as string;
 
+  // Like state for review activities
+  const [isLiked, setIsLiked] = useState(Boolean(data.is_liked));
+  const [likesCount, setLikesCount] = useState(Number(data.likes_count ?? 0));
+
+  async function handleReviewLike() {
+    if (process.env.EXPO_OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    const prev = { isLiked, likesCount };
+    setIsLiked(!isLiked);
+    setLikesCount(likesCount + (isLiked ? -1 : 1));
+    const reviewBase = activity.activity_type === 'song_review'
+      ? '/api/v1/reviews/songs/reviews'
+      : '/api/v1/reviews/albums/reviews';
+    try {
+      await apiFetch<void>(`${reviewBase}/${data.id}/like/`, {
+        method: isLiked ? 'DELETE' : 'POST',
+      });
+    } catch {
+      setIsLiked(prev.isLiked);
+      setLikesCount(prev.likesCount);
+    }
+  }
+
   // Profile-view follow activity: compact one-line card
   if (isFollow && isProfileView && profileUser) {
     return (
@@ -254,7 +279,8 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
 
   function handleCardPress() {
     if (isReview && reviewId) {
-      router.push(`/review/${reviewId}`);
+      const reviewType = activity.activity_type === 'song_review' ? 'song' : 'album';
+      router.push({ pathname: '/review/[id]', params: { id: String(reviewId), type: reviewType } });
     } else if (activity.activity_type === 'song_rating' && songSpotifyId) {
       router.push(`/track/${songSpotifyId}`);
     } else if (isRatingOrReview && albumSpotifyId) {
@@ -323,11 +349,34 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
                 padding: 10,
               }}
             >
-              <Text style={{ fontSize: 13, color: Colors.textSecondary, lineHeight: 18 }} numberOfLines={2}>
+              <Text style={{ fontSize: 13, color: Colors.textSecondary, lineHeight: 18 }} numberOfLines={3}>
                 {(data.content ?? '') as string}
               </Text>
             </View>
           ) : null}
+          {/* Like button */}
+          <Pressable
+            onPress={handleReviewLike}
+            hitSlop={10}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              alignSelf: 'flex-start',
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Image
+              source={isLiked ? 'sf:heart.fill' : 'sf:heart'}
+              style={{ width: 16, height: 16 }}
+              tintColor={isLiked ? '#FF3B30' : Colors.textTertiary}
+            />
+            {likesCount > 0 && (
+              <Text style={{ fontSize: 13, color: isLiked ? '#FF3B30' : Colors.textTertiary }}>
+                {likesCount}
+              </Text>
+            )}
+          </Pressable>
         </View>
       )}
 

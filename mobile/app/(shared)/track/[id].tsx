@@ -264,7 +264,7 @@ export default function TrackScreen() {
               <SectionHeader title="Reviews" />
               <View style={{ paddingHorizontal: 16, gap: 12 }}>
                 {reviews.map(review => (
-                  <ReviewCard key={review.id} review={review} />
+                  <ReviewCard key={review.id} review={review} type="song" />
                 ))}
               </View>
             </View>

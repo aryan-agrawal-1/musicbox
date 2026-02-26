@@ -369,7 +369,7 @@ export default function DiaryScreen() {
               </View>
             ) : null
           }
-          stickySectionHeadersEnabled
+          stickySectionHeadersEnabled={false}
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={{ paddingBottom: 48 }}
           refreshControl={
