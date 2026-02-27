@@ -1,11 +1,10 @@
-import React from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 
 import { Colors } from '@/constants/colors';
-import { AuthContext } from '@/contexts/auth-context';
 import { FollowListRow } from '@/components/follow-list-row';
-import { useFollowersList } from '@/hooks/use-profile';
+import { useFollowingList } from '@/hooks/use-profile';
 
 function EmptyState({ text }: { text: string }) {
   return (
@@ -16,10 +15,8 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
-export default function OwnFollowersScreen() {
-  const { user: currentUser } = React.use(AuthContext);
-  const username = currentUser?.username ?? '';
-
+export default function UserFollowingScreen() {
+  const { username } = useLocalSearchParams<{ username: string }>();
   const {
     data,
     isLoading,
@@ -28,9 +25,9 @@ export default function OwnFollowersScreen() {
     isFetchingNextPage,
     refetch,
     isRefetching,
-  } = useFollowersList(username);
+  } = useFollowingList(username);
 
-  const users = data?.pages.flatMap((p) => p.results.map((f) => f.follower)) ?? [];
+  const users = data?.pages.flatMap((p) => p.results.map((f) => f.following)) ?? [];
 
   return (
     <FlatList
@@ -53,7 +50,7 @@ export default function OwnFollowersScreen() {
         isLoading ? (
           <ActivityIndicator style={{ marginTop: 40 }} color={Colors.accent} />
         ) : (
-          <EmptyState text="No followers yet" />
+          <EmptyState text="Not following anyone yet" />
         )
       }
       ListFooterComponent={

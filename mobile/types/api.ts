@@ -144,6 +144,13 @@ export interface FeedActivity {
   created_at: string;
 }
 
+export interface Follow {
+  id: number;
+  follower: User;
+  following: User;
+  created_at: string;
+}
+
 export interface ListeningHistory {
   id: number;
   song: Song;

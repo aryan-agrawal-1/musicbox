@@ -1,9 +1,8 @@
-import React from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 
 import { Colors } from '@/constants/colors';
-import { AuthContext } from '@/contexts/auth-context';
 import { FollowListRow } from '@/components/follow-list-row';
 import { useFollowersList } from '@/hooks/use-profile';
 
@@ -16,10 +15,8 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
-export default function OwnFollowersScreen() {
-  const { user: currentUser } = React.use(AuthContext);
-  const username = currentUser?.username ?? '';
-
+export default function UserFollowersScreen() {
+  const { username } = useLocalSearchParams<{ username: string }>();
   const {
     data,
     isLoading,

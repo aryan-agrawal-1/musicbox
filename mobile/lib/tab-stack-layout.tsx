@@ -14,7 +14,7 @@ export default function TabStackLayout({ indexTitle, children }: TabStackLayoutP
       <Stack.Screen name="album/[id]" options={{ headerLargeTitle: false }} />
       <Stack.Screen name="track/[id]" options={{ headerLargeTitle: false }} />
       <Stack.Screen name="artist/[id]" options={{ headerLargeTitle: false }} />
-      <Stack.Screen name="user/[username]" options={{ headerLargeTitle: false }} />
+      <Stack.Screen name="user/[username]" options={{ headerShown: false }} />
       <Stack.Screen name="review/[id]" options={{ headerLargeTitle: false }} />
       <Stack.Screen
         name="review/comments"

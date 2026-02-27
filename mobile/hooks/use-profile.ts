@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { apiFetch } from '@/lib/api';
 import type {
   User,
+  Follow,
   AlbumRating,
   SongRating,
   AlbumReview,
@@ -110,6 +111,36 @@ export function useIsFollowing(username: string) {
         `/api/v1/social/users/${username}/is-following/`
       ),
     staleTime: 60 * 1000,
+    enabled: username.length > 0,
+  });
+}
+
+export function useFollowersList(username: string) {
+  return useInfiniteQuery({
+    queryKey: ['followers', username],
+    queryFn: ({ pageParam }) =>
+      apiFetch<PaginatedResponse<Follow>>(
+        `/api/v1/social/users/${username}/followers/?page=${pageParam}`
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.next ? allPages.length + 1 : undefined,
+    staleTime: 2 * 60 * 1000,
+    enabled: username.length > 0,
+  });
+}
+
+export function useFollowingList(username: string) {
+  return useInfiniteQuery({
+    queryKey: ['following-list', username],
+    queryFn: ({ pageParam }) =>
+      apiFetch<PaginatedResponse<Follow>>(
+        `/api/v1/social/users/${username}/following/?page=${pageParam}`
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.next ? allPages.length + 1 : undefined,
+    staleTime: 2 * 60 * 1000,
     enabled: username.length > 0,
   });
 }

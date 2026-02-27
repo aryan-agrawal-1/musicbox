@@ -7,7 +7,7 @@ export default function SharedLayout() {
       <Stack.Screen name="album/[id]" />
       <Stack.Screen name="track/[id]" />
       <Stack.Screen name="artist/[id]" />
-      <Stack.Screen name="user/[username]" />
+      <Stack.Screen name="user/[username]" options={{ headerShown: false }} />
       <Stack.Screen name="review/[id]" />
       <Stack.Screen
         name="review/comments"
