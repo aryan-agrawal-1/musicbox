@@ -432,7 +432,13 @@ export default function UserScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: user.username, headerShown: false }} />
+      <Stack.Screen
+        options={{
+          title: '',
+          headerTransparent: true,
+          headerTintColor: Colors.textPrimary,
+        }}
+      />
       <ScrollView
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{ paddingBottom: 48 + insets.bottom }}
@@ -444,31 +450,6 @@ export default function UserScreen() {
           />
         }
       >
-        {/* Back button */}
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            position: 'absolute',
-            top: insets.top + 8,
-            left: 16,
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(11,11,11,0.5)',
-            opacity: pressed ? 0.75 : 1,
-            zIndex: 10,
-          })}
-        >
-          <Image
-            source="sf:chevron.left"
-            style={{ width: 14, height: 14 }}
-            tintColor={Colors.textPrimary}
-          />
-        </Pressable>
-
         {/* Hero */}
         <ProfileHero
           user={user}

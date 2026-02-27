@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -20,6 +21,7 @@ import Animated, {
   withTiming,
   withDelay,
   withRepeat,
+  withSequence,
   interpolateColor,
   FadeIn,
   FadeInDown,
@@ -72,44 +74,57 @@ async function fadeIn(player: AudioPlayer): Promise<void> {
   }
 }
 
-type OnboardingStep = 'username' | 'account' | 'spotify' | 'tracks';
+type OnboardingStep = 'username' | 'account' | 'bio' | 'pfp' | 'spotify' | 'tracks';
 
+type CoreStep = 'username' | 'account' | 'bio' | 'pfp';
+const CORE_STEPS: CoreStep[] = ['username', 'account', 'bio', 'pfp'];
 
-function DotIndicator({ step }: { step: 'username' | 'account' }) {
-  const dot1Width = useSharedValue(step === 'username' ? 24 : 10);
-  const dot2Width = useSharedValue(step === 'account' ? 24 : 10);
+function DotIndicator({ step }: { step: CoreStep }) {
+  const idx = CORE_STEPS.indexOf(step);
+
+  const w0 = useSharedValue(idx === 0 ? 24 : 10);
+  const w1 = useSharedValue(idx === 1 ? 24 : 10);
+  const w2 = useSharedValue(idx === 2 ? 24 : 10);
+  const w3 = useSharedValue(idx === 3 ? 24 : 10);
 
   useEffect(() => {
-    dot1Width.value = withSpring(step === 'username' ? 24 : 10, { damping: 20, stiffness: 200 });
-    dot2Width.value = withSpring(step === 'account' ? 24 : 10, { damping: 20, stiffness: 200 });
-  }, [step, dot1Width, dot2Width]);
+    w0.value = withSpring(idx === 0 ? 24 : 10, { damping: 20, stiffness: 200 });
+    w1.value = withSpring(idx === 1 ? 24 : 10, { damping: 20, stiffness: 200 });
+    w2.value = withSpring(idx === 2 ? 24 : 10, { damping: 20, stiffness: 200 });
+    w3.value = withSpring(idx === 3 ? 24 : 10, { damping: 20, stiffness: 200 });
+  }, [idx]);
 
-  const dot1Style = useAnimatedStyle(() => ({
-    width: dot1Width.value,
+  const s0 = useAnimatedStyle(() => ({
+    width: w0.value,
     height: 10,
     borderRadius: 100,
-    backgroundColor: interpolateColor(
-      dot1Width.value,
-      [10, 24],
-      [Colors.surfaceHigh, Colors.accent]
-    ),
+    backgroundColor: interpolateColor(w0.value, [10, 24], [Colors.surfaceHigh, Colors.accent]),
   }));
-
-  const dot2Style = useAnimatedStyle(() => ({
-    width: dot2Width.value,
+  const s1 = useAnimatedStyle(() => ({
+    width: w1.value,
     height: 10,
     borderRadius: 100,
-    backgroundColor: interpolateColor(
-      dot2Width.value,
-      [10, 24],
-      [Colors.surfaceHigh, Colors.accent]
-    ),
+    backgroundColor: interpolateColor(w1.value, [10, 24], [Colors.surfaceHigh, Colors.accent]),
+  }));
+  const s2 = useAnimatedStyle(() => ({
+    width: w2.value,
+    height: 10,
+    borderRadius: 100,
+    backgroundColor: interpolateColor(w2.value, [10, 24], [Colors.surfaceHigh, Colors.accent]),
+  }));
+  const s3 = useAnimatedStyle(() => ({
+    width: w3.value,
+    height: 10,
+    borderRadius: 100,
+    backgroundColor: interpolateColor(w3.value, [10, 24], [Colors.surfaceHigh, Colors.accent]),
   }));
 
   return (
     <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-      <Animated.View style={dot1Style} />
-      <Animated.View style={dot2Style} />
+      <Animated.View style={s0} />
+      <Animated.View style={s1} />
+      <Animated.View style={s2} />
+      <Animated.View style={s3} />
     </View>
   );
 }
@@ -573,6 +588,430 @@ function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
         </Text>
       </View>
     </ScrollView>
+  );
+}
+
+// Bio
+
+interface BioStepProps {
+  onBack: () => void;
+  onContinue: () => void;
+  onSkip: () => void;
+}
+
+function BioStep({ onBack, onContinue, onSkip }: BioStepProps) {
+  const insets = useSafeAreaInsets();
+  const inputRef = useRef<TextInput>(null);
+  const [bio, setBio] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  const borderAnim = useSharedValue(0);
+  const borderStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(borderAnim.value, [0, 1], [Colors.surfaceHigh, Colors.accent]),
+  }));
+
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 650);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, e => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
+
+  async function handleContinue() {
+    const trimmed = bio.trim();
+    if (!trimmed) {
+      onContinue();
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await apiFetch('/api/v1/auth/me/', {
+        method: 'PATCH',
+        body: JSON.stringify({ bio: trimmed }),
+      });
+    } catch {
+      // Best-effort — continue regardless
+    } finally {
+      setIsLoading(false);
+      onContinue();
+    }
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Pressable
+        onPress={onBack}
+        hitSlop={16}
+        style={{ position: 'absolute', top: insets.top + 12, left: 16, padding: 8, zIndex: 10 }}
+      >
+        <Text style={{ fontSize: 24, color: Colors.textPrimary }}>‹</Text>
+      </Pressable>
+
+      <View
+        style={{
+          flex: 1,
+          paddingTop: insets.top + 80,
+          paddingHorizontal: 24,
+          paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : insets.bottom + 32,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 32,
+            fontWeight: '700',
+            color: Colors.textPrimary,
+            letterSpacing: -0.5,
+            marginBottom: 8,
+          }}
+        >
+          Tell your{' '}
+          <Text style={{ color: Colors.accent }}>story.</Text>
+        </Text>
+        <Text
+          style={{
+            fontSize: 16,
+            color: Colors.textSecondary,
+            marginBottom: 32,
+            lineHeight: 22,
+          }}
+        >
+          A short bio helps others know what you're about.
+        </Text>
+
+        <Animated.View
+          style={[
+            {
+              borderWidth: 1,
+              borderRadius: 16,
+              borderCurve: 'continuous',
+              backgroundColor: Colors.surfaceElevated,
+              padding: 16,
+              minHeight: 128,
+            },
+            borderStyle,
+          ]}
+        >
+          <TextInput
+            ref={inputRef}
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Talk about your music taste, favourite albums, anything…"
+            placeholderTextColor={Colors.textTertiary}
+            style={{
+              fontSize: 16,
+              color: Colors.textPrimary,
+              backgroundColor: 'transparent',
+              minHeight: 80,
+              textAlignVertical: 'top',
+              lineHeight: 22,
+            }}
+            multiline
+            maxLength={200}
+            onFocus={() => { borderAnim.value = withTiming(1, { duration: 200 }); }}
+            onBlur={() => { borderAnim.value = withTiming(0, { duration: 200 }); }}
+          />
+          {bio.length > 150 && (
+            <Text
+              style={{
+                fontSize: 12,
+                color: bio.length >= 190 ? Colors.destructive : Colors.textTertiary,
+                textAlign: 'right',
+                fontVariant: ['tabular-nums'],
+                marginTop: 4,
+              }}
+            >
+              {bio.length}/200
+            </Text>
+          )}
+        </Animated.View>
+
+        {/* Flex spacer — always at least 20px between box and buttons */}
+        <View style={{ flex: 1, minHeight: 20 }} />
+
+        <View style={{ gap: 12 }}>
+          <Pressable
+            onPress={handleContinue}
+            disabled={isLoading}
+            style={{
+              height: 52,
+              borderRadius: 14,
+              borderCurve: 'continuous',
+              backgroundColor: Colors.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isLoading ? 0.5 : 1,
+            }}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#000000" />
+            ) : (
+              <Text style={{ fontSize: 17, fontWeight: '600', color: '#000000' }}>Continue →</Text>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={onSkip}
+            style={{ alignItems: 'center', paddingVertical: 10 }}
+          >
+            <Text style={{ fontSize: 15, color: Colors.textTertiary }}>Skip for now</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// Profile picture
+
+interface ProfilePictureStepProps {
+  username: string;
+  onBack: () => void;
+  onContinue: () => void;
+  onSkip: () => void;
+}
+
+function ProfilePictureStep({ username, onBack, onContinue, onSkip }: ProfilePictureStepProps) {
+  const insets = useSafeAreaInsets();
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPickerOpening, setIsPickerOpening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const scaleAnim = useSharedValue(1);
+  const avatarContainerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleAnim.value }],
+  }));
+
+  // Fire the pop-in AFTER React has painted the selected image, not before
+  useEffect(() => {
+    if (!imageUri) return;
+    scaleAnim.value = withSequence(
+      withTiming(0.85, { duration: 120 }),
+      withSpring(1, { damping: 10, stiffness: 160 })
+    );
+  }, [imageUri]);
+
+  async function pickImage() {
+    setIsPickerOpening(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        setImageUri(result.assets[0].uri);
+        setError(null);
+      }
+    } finally {
+      setIsPickerOpening(false);
+    }
+  }
+
+  async function handleContinue() {
+    if (!imageUri) {
+      onContinue();
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Step 1: Get a presigned upload URL from the backend
+      const { upload_url, public_url } = await apiFetch<{ upload_url: string; public_url: string }>(
+        '/api/v1/auth/avatar/upload-url/',
+        { method: 'POST', body: JSON.stringify({ content_type: 'image/jpeg' }) }
+      );
+
+      // Step 2: PUT the image bytes directly to Cloudflare R2
+      const imageRes = await fetch(imageUri);
+      const blob = await imageRes.blob();
+      await fetch(upload_url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: blob,
+      });
+
+      // Step 3: Save the public URL on the user profile
+      await apiFetch('/api/v1/auth/me/', {
+        method: 'PATCH',
+        body: JSON.stringify({ avatar_url: public_url }),
+      });
+
+      onContinue();
+    } catch {
+      setError("Couldn't upload — you can add a photo later in Settings.");
+      onContinue();
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const initial = (username[0] ?? '?').toUpperCase();
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Pressable
+        onPress={onBack}
+        hitSlop={16}
+        style={{ position: 'absolute', top: insets.top + 12, left: 16, padding: 8, zIndex: 10 }}
+      >
+        <Text style={{ fontSize: 24, color: Colors.textPrimary }}>‹</Text>
+      </Pressable>
+
+      <View
+        style={{
+          flex: 1,
+          paddingTop: insets.top + 80,
+          paddingHorizontal: 24,
+          paddingBottom: insets.bottom + 32,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 32,
+            fontWeight: '700',
+            color: Colors.textPrimary,
+            letterSpacing: -0.5,
+            marginBottom: 8,
+          }}
+        >
+          Add a{' '}
+          <Text style={{ color: Colors.accent }}>photo.</Text>
+        </Text>
+        <Text
+          style={{
+            fontSize: 16,
+            color: Colors.textSecondary,
+            marginBottom: 52,
+            lineHeight: 22,
+          }}
+        >
+          Put a face to the name.
+        </Text>
+
+        {/* Avatar picker */}
+        <Animated.View style={[{ alignItems: 'center' }, avatarContainerStyle]}>
+          <Pressable onPress={pickImage} disabled={isPickerOpening} style={{ opacity: isPickerOpening ? 0.5 : 1 }}>
+            <View style={{ position: 'relative' }}>
+              {imageUri ? (
+                <Image
+                  source={{ uri: imageUri }}
+                  style={{ width: 120, height: 120, borderRadius: 60 }}
+                  contentFit="cover"
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 120,
+                    height: 120,
+                    borderRadius: 60,
+                    backgroundColor: Colors.surfaceElevated,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 2,
+                    borderColor: Colors.surfaceHigh,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 46,
+                      fontWeight: '600',
+                      color: Colors.textTertiary,
+                    }}
+                  >
+                    {initial}
+                  </Text>
+                </View>
+              )}
+
+              {/* Camera badge */}
+              <View
+                style={{
+                  position: 'absolute',
+                  bottom: 2,
+                  right: 2,
+                  width: 34,
+                  height: 34,
+                  borderRadius: 17,
+                  backgroundColor: Colors.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 2,
+                  borderColor: Colors.background,
+                }}
+              >
+                <Image
+                  source="sf:camera.fill"
+                  style={{ width: 16, height: 16 }}
+                  tintColor="#000000"
+                  contentFit="contain"
+                />
+              </View>
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={pickImage}
+            disabled={isPickerOpening}
+            style={{ marginTop: 18, paddingVertical: 8, paddingHorizontal: 16 }}
+          >
+            <Text style={{ fontSize: 15, color: Colors.accent, fontWeight: '500' }}>
+              {imageUri ? 'Change photo' : 'Choose from library'}
+            </Text>
+          </Pressable>
+        </Animated.View>
+
+        {error && (
+          <Animated.Text
+            entering={FadeIn.duration(300)}
+            style={{
+              fontSize: 13,
+              color: Colors.destructive,
+              textAlign: 'center',
+              marginTop: 16,
+              lineHeight: 18,
+            }}
+          >
+            {error}
+          </Animated.Text>
+        )}
+
+        <View style={{ marginTop: 'auto', gap: 12 }}>
+          <Pressable
+            onPress={handleContinue}
+            disabled={isLoading}
+            style={{
+              height: 52,
+              borderRadius: 14,
+              borderCurve: 'continuous',
+              backgroundColor: Colors.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isLoading ? 0.5 : 1,
+            }}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#000000" />
+            ) : (
+              <Text style={{ fontSize: 17, fontWeight: '600', color: '#000000' }}>Continue →</Text>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={onSkip}
+            style={{ alignItems: 'center', paddingVertical: 10 }}
+          >
+            <Text style={{ fontSize: 15, color: Colors.textTertiary }}>Skip for now</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -1113,8 +1552,8 @@ export default function RegisterScreen() {
         behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        {/* Dot indicator — visible only during first two steps */}
-        {(step === 'username' || step === 'account') && (
+        {/* Dot indicator — visible only during the four core steps */}
+        {(step === 'username' || step === 'account' || step === 'bio' || step === 'pfp') && (
           <View
             pointerEvents="none"
             style={{
@@ -1126,7 +1565,7 @@ export default function RegisterScreen() {
               zIndex: 10,
             }}
           >
-            <DotIndicator step={step} />
+            <DotIndicator step={step as CoreStep} />
           </View>
         )}
 
@@ -1148,7 +1587,22 @@ export default function RegisterScreen() {
             <AccountStep
               username={username}
               onBack={() => goBack('username')}
-              onSuccess={() => advance('spotify')}
+              onSuccess={() => advance('bio')}
+            />
+          )}
+          {step === 'bio' && (
+            <BioStep
+              onBack={() => goBack('account')}
+              onContinue={() => advance('pfp')}
+              onSkip={() => advance('pfp')}
+            />
+          )}
+          {step === 'pfp' && (
+            <ProfilePictureStep
+              username={username}
+              onBack={() => goBack('bio')}
+              onContinue={() => advance('spotify')}
+              onSkip={() => advance('spotify')}
             />
           )}
           {step === 'spotify' && (
