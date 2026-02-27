@@ -62,9 +62,19 @@ class CurrentUserView(generics.RetrieveUpdateDestroyAPIView):
     def get_object(self):
         return self.request.user
 
+    def update(self, request, *args, **kwargs):
+        old_avatar_url = self.get_object().avatar_url
+        response = super().update(request, *args, **kwargs)
+        new_avatar_url = self.get_object().avatar_url
+        if old_avatar_url and old_avatar_url != new_avatar_url:
+            _delete_r2_avatar(old_avatar_url)
+        return response
+
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()
+        avatar_url = user.avatar_url
         user.delete()
+        _delete_r2_avatar(avatar_url)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -142,6 +152,30 @@ _ALLOWED_AVATAR_TYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/heic'}
 _EXT_MAP = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic'}
 
 
+def _get_r2_client():
+    return boto3.client(
+        's3',
+        endpoint_url=f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+        region_name='auto',
+    )
+
+
+def _delete_r2_avatar(avatar_url):
+    """Delete an avatar object from R2. Silently ignores errors."""
+    if not avatar_url or not settings.R2_PUBLIC_URL:
+        return
+    prefix = settings.R2_PUBLIC_URL.rstrip('/')
+    if not avatar_url.startswith(prefix + '/'):
+        return
+    key = avatar_url[len(prefix) + 1:]
+    try:
+        _get_r2_client().delete_object(Bucket=settings.R2_BUCKET_NAME, Key=key)
+    except Exception:
+        pass
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def get_avatar_upload_url(request):
@@ -153,15 +187,7 @@ def get_avatar_upload_url(request):
     ext = _EXT_MAP[content_type]
     key = f"avatars/{request.user.id}/{uuid.uuid4()}.{ext}"
 
-    s3 = boto3.client(
-        's3',
-        endpoint_url=f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
-        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
-        region_name='auto',
-    )
-
-    upload_url = s3.generate_presigned_url(
+    upload_url = _get_r2_client().generate_presigned_url(
         'put_object',
         Params={'Bucket': settings.R2_BUCKET_NAME, 'Key': key, 'ContentType': content_type},
         ExpiresIn=300,
