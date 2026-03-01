@@ -151,6 +151,20 @@ export interface Follow {
   created_at: string;
 }
 
+export interface PushNotification {
+  id: number;
+  actor: Pick<User, 'id' | 'username' | 'avatar_url'>;
+  notification_type:
+    | 'new_follower'
+    | 'review_liked'
+    | 'comment_on_review'
+    | 'reply_to_comment'
+    | 'comment_liked';
+  data: Record<string, string>;
+  is_read: boolean;
+  created_at: string;
+}
+
 export interface ListeningHistory {
   id: number;
   song: Song;

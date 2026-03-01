@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Stack, useSegments } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -6,9 +6,18 @@ import { ThemeProvider, DarkTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 
+import * as Notifications from 'expo-notifications';
+
 import { queryClient } from '@/lib/query-client';
 import { tokenStore } from '@/lib/auth';
 import { apiFetch } from '@/lib/api';
+import {
+  registerForPushNotifications,
+  syncPushToken,
+  removePushToken,
+  handleNotificationTap,
+  handleLastNotificationResponse,
+} from '@/lib/notifications';
 import { AuthContext, type AuthState, type RegisterData } from '@/contexts/auth-context';
 import { Colors } from '@/constants/colors';
 import type { User, AuthTokens } from '@/types/api';
@@ -36,6 +45,32 @@ export default function RootLayout() {
     restoreSession();
   }, []);
 
+  // ── Push notification lifecycle ───────────────────────────────────────────
+  const pushTokenRef = useRef<string | null>(null);
+  const notifListener = useRef<Notifications.EventSubscription | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+
+    async function setup() {
+      const token = await registerForPushNotifications();
+      if (!mounted || !token) return;
+      pushTokenRef.current = token;
+      await syncPushToken(token);
+      notifListener.current = Notifications.addNotificationResponseReceivedListener(
+        (r) => handleNotificationTap(r.notification)
+      );
+      await handleLastNotificationResponse();
+    }
+
+    setup();
+    return () => {
+      mounted = false;
+      notifListener.current?.remove();
+    };
+  }, [user?.id]);
+
   const login = async (username: string, password: string) => {
     const tokens = await apiFetch<AuthTokens>('/api/v1/token/', {
       method: 'POST',
@@ -55,6 +90,10 @@ export default function RootLayout() {
   };
 
   const logout = async () => {
+    if (pushTokenRef.current) {
+      await removePushToken(pushTokenRef.current);
+      pushTokenRef.current = null;
+    }
     await tokenStore.clearTokens();
     queryClient.clear();
     setUser(null);

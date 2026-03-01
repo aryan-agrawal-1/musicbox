@@ -25,6 +25,9 @@ urlpatterns = [
         # Social (Follow and Feed)
         path("social/", include("social.urls")),
 
+        # Push notifications
+        path("notifications/", include("notifications.urls")),
+
         # API schema and documentation
         path("schema/", SpectacularAPIView.as_view(), name="schema"),
         path("schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
