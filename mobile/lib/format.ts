@@ -1,3 +1,20 @@
+// Construct a display name from a user object, falling back to username
+
+export function displayName(user: { first_name?: string | null; last_name?: string | null; username: string }): string {
+  const full = `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim();
+  return full || user.username;
+}
+
+// Split an array into chunks of a given size
+
+export function chunk<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+}
+
 //  Format large numbers: 1400 → "1.4k", 1_200_000 → "1.2M"
 
 export function formatCount(n: number): string {

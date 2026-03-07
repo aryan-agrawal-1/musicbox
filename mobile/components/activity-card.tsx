@@ -8,7 +8,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors } from '@/constants/colors';
 import { AvatarImage } from '@/components/avatar-image';
 import { StarRating } from '@/components/star-rating';
-import { apiFetch } from '@/lib/api';
+import { useToggleReviewLike } from '@/hooks/use-review-detail';
+import { formatRelativeTime, displayName } from '@/lib/format';
 import type { FeedActivity, User } from '@/types/api';
 
 interface ActivityCardProps {
@@ -18,22 +19,6 @@ interface ActivityCardProps {
   profileUser?: User | null;
   /** When true, hides the user header on rate/review cards (used on profile screens) */
   isProfileView?: boolean;
-}
-
-function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${Math.floor(diffHours / 24)}d ago`;
-}
-
-function displayName(user: FeedActivity['user']): string {
-  const full = `${user.first_name} ${user.last_name}`.trim();
-  return full || user.username;
 }
 
 /** Follow activity_data: API sends { follower, following } (User objects); support flat followed_* for backward compat */
@@ -215,6 +200,8 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
   // Like state for review activities
   const [isLiked, setIsLiked] = useState(Boolean(data.is_liked));
   const [likesCount, setLikesCount] = useState(Number(data.likes_count ?? 0));
+  const reviewType = activity.activity_type === 'song_review' ? 'song' : 'album';
+  const toggleLike = useToggleReviewLike(String(data.id ?? ''), reviewType);
 
   async function handleReviewLike() {
     if (process.env.EXPO_OS === 'ios') {
@@ -223,13 +210,8 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
     const prev = { isLiked, likesCount };
     setIsLiked(!isLiked);
     setLikesCount(likesCount + (isLiked ? -1 : 1));
-    const reviewBase = activity.activity_type === 'song_review'
-      ? '/api/v1/reviews/songs/reviews'
-      : '/api/v1/reviews/albums/reviews';
     try {
-      await apiFetch<void>(`${reviewBase}/${data.id}/like/`, {
-        method: isLiked ? 'DELETE' : 'POST',
-      });
+      await toggleLike.mutateAsync({ liked: isLiked });
     } catch {
       setIsLiked(prev.isLiked);
       setLikesCount(prev.likesCount);

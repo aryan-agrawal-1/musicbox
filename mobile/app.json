@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Muze",
+    "name": "Noted",
     "slug": "musicbox",
     "scheme": "muze",
     "version": "1.0.0",
@@ -8,13 +8,17 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#0B0B0B"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.aryan.muze",
+      "icon": {
+        "foregroundImage": "./assets/icon-foreground.png",
+        "backgroundImage": "./assets/icon-background.png"
+      },
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -23,8 +27,8 @@
     "android": {
       "package": "com.aryan.muze",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B0B0B"
+        "foregroundImage": "./assets/icon-foreground.png",
+        "backgroundImage": "./assets/icon-background.png"
       },
       "permissions": [
         "android.permission.RECORD_AUDIO",
@@ -32,9 +36,6 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     },
     "experiments": {
       "reactCompiler": true
@@ -54,7 +55,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Muze to access your photos to set a profile picture."
+          "photosPermission": "Allow Noted to access your photos to set a profile picture."
         }
       ],
       "expo-notifications",

@@ -79,10 +79,11 @@ export function useUserSearch(query: string) {
   });
 }
 
-export function useListeningHistory() {
+export function useListeningHistory(enabled = true) {
   return useQuery({
     queryKey: ['listening-history'],
     queryFn: () => apiFetch<PaginatedResponse<ListeningHistory>>('/api/v1/music/listening-history/'),
     staleTime: 2 * 60 * 1000,
+    enabled,
   });
 }

@@ -17,6 +17,7 @@ import {
   useUserRatings,
   useUserReviews,
 } from '@/hooks/use-profile';
+import { displayName, chunk } from '@/lib/format';
 import type {
   User,
   AlbumRating,
@@ -26,20 +27,7 @@ import type {
   FeedActivity,
 } from '@/types/api';
 
-// Helpers
-
-export function displayName(user: User): string {
-  const full = `${user.first_name} ${user.last_name}`.trim();
-  return full || user.username;
-}
-
-function chunk<T>(arr: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    result.push(arr.slice(i, i + size));
-  }
-  return result;
-}
+export { displayName };
 
 
 function RatingGridItem({ rating }: { rating: AlbumRating | SongRating }) {

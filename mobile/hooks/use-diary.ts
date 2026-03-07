@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-q
 import { apiFetch } from '@/lib/api';
 import type { ListeningHistory, PaginatedResponse } from '@/types/api';
 
-export function useDiary() {
+export function useDiary(enabled = true) {
   return useInfiniteQuery({
     queryKey: ['diary'],
     queryFn: ({ pageParam }) =>
@@ -13,6 +13,7 @@ export function useDiary() {
     getNextPageParam: (lastPage, allPages) =>
       lastPage.next ? allPages.length + 1 : undefined,
     staleTime: 2 * 60 * 1000,
+    enabled,
   });
 }
 

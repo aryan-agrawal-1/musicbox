@@ -7,7 +7,8 @@ import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/colors';
 import { AvatarImage } from '@/components/avatar-image';
 import { StarRating } from '@/components/star-rating';
-import { apiFetch } from '@/lib/api';
+import { useToggleReviewLike } from '@/hooks/use-review-detail';
+import { formatRelativeTime, displayName } from '@/lib/format';
 import type { AlbumReview, SongReview } from '@/types/api';
 
 interface ReviewCardProps {
@@ -15,32 +16,11 @@ interface ReviewCardProps {
   type?: 'album' | 'song';
 }
 
-function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return 'today';
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
-  return `${Math.floor(diffDays / 365)}y ago`;
-}
-
-function displayName(user: (AlbumReview | SongReview)['user']): string {
-  const full = `${user.first_name} ${user.last_name}`.trim();
-  return full || user.username;
-}
-
 export function ReviewCard({ review, type = 'album' }: ReviewCardProps) {
   const router = useRouter();
   const [isLiked, setIsLiked] = useState(review.is_liked);
   const [likesCount, setLikesCount] = useState(review.likes_count);
-
-  const reviewBase = type === 'album'
-    ? '/api/v1/reviews/albums/reviews'
-    : '/api/v1/reviews/songs/reviews';
+  const toggleLike = useToggleReviewLike(String(review.id), type);
 
   async function handleLike() {
     if (process.env.EXPO_OS === 'ios') {
@@ -50,9 +30,7 @@ export function ReviewCard({ review, type = 'album' }: ReviewCardProps) {
     setIsLiked(!isLiked);
     setLikesCount(likesCount + (isLiked ? -1 : 1));
     try {
-      await apiFetch<void>(`${reviewBase}/${review.id}/like/`, {
-        method: isLiked ? 'DELETE' : 'POST',
-      });
+      await toggleLike.mutateAsync({ liked: isLiked });
     } catch {
       setIsLiked(prev.isLiked);
       setLikesCount(prev.likesCount);

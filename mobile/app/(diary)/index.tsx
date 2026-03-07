@@ -257,7 +257,7 @@ export default function DiaryScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useDiary();
+  } = useDiary(auth.user?.is_spotify_connected ?? false);
 
   const syncMutation = useSyncListeningHistory();
 

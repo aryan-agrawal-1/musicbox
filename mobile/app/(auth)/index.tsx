@@ -100,7 +100,7 @@ export default function LandingScreen() {
             letterSpacing: -1,
           }}
         >
-          Muze
+          Noted
         </Text>
         <Text style={{ fontSize: 15, color: Colors.textSecondary, letterSpacing: -0.2 }}>
           Your music, remembered.

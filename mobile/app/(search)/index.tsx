@@ -1,16 +1,18 @@
-import { useState, useEffect, startTransition, useMemo } from 'react';
+import { use, useState, useEffect, startTransition, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
 
 import { Colors } from '@/constants/colors';
+import { AuthContext } from '@/contexts/auth-context';
 import { AlbumCard } from '@/components/album-card';
 import { TrackRow } from '@/components/track-row';
 import { SectionHeader } from '@/components/section-header';
 import { SkeletonCard } from '@/components/skeleton-card';
 import { useSearch, useListeningHistory, useUserSearch } from '@/hooks/use-search';
 import { usePopularAlbums, usePopularArtists, usePopularUsers } from '@/hooks/use-feed';
+import { chunk } from '@/lib/format';
 import type {
   SpotifyAlbumResult,
   SpotifyTrackResult,
@@ -297,6 +299,7 @@ function NoResults({ query }: { query: string }) {
 
 export default function SearchScreen() {
   const router = useRouter();
+  const auth = use(AuthContext);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [segment, setSegment] = useState(0);
@@ -312,7 +315,7 @@ export default function SearchScreen() {
   const { data: popularData, isLoading: popularLoading, error: popularError, refetch: refetchPopular } = usePopularAlbums();
   const { data: popularArtistsData, isLoading: artistsLoading } = usePopularArtists();
   const { data: popularUsersData, isLoading: usersLoading } = usePopularUsers();
-  const { data: historyData } = useListeningHistory();
+  const { data: historyData } = useListeningHistory(auth.user?.is_spotify_connected ?? false);
 
   // Deduplicate listening history by album — single-pass with Set (O(n))
   const recentAlbums = useMemo<Album[]>(() => {
@@ -414,7 +417,7 @@ export default function SearchScreen() {
               {segment === 0 && albums.length > 0 && (
                 <View style={{ paddingHorizontal: 12, paddingTop: 4, gap: 4 }}>
                   {chunk(albums, 3).map((row, ri) => (
-                    <View key={ri} style={{ flexDirection: 'row', gap: 4 }}>
+                    <View key={row[0]?.spotify_id ?? String(ri)} style={{ flexDirection: 'row', gap: 4 }}>
                       {row.map(album => (
                         <View key={album.spotify_id} style={{ flex: 1 }}>
                           <AlbumCard album={album} variant="compact" showLabel />
@@ -587,12 +590,3 @@ export default function SearchScreen() {
   );
 }
 
-// Utility
-
-function chunk<T>(arr: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    result.push(arr.slice(i, i + size));
-  }
-  return result;
-}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Stack, useSegments } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -76,7 +76,7 @@ export default function RootLayout() {
     };
   }, [user?.id]);
 
-  const login = async (username: string, password: string) => {
+  const login = useCallback(async (username: string, password: string) => {
     const tokens = await apiFetch<AuthTokens>('/api/v1/token/', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
@@ -84,17 +84,17 @@ export default function RootLayout() {
     await tokenStore.setTokens(tokens.access, tokens.refresh);
     const me = await apiFetch<User>('/api/v1/auth/me/');
     setUser(me);
-  };
+  }, []);
 
-  const register = async (data: RegisterData) => {
+  const register = useCallback(async (data: RegisterData) => {
     await apiFetch('/api/v1/auth/register/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
     await login(data.username, data.password);
-  };
+  }, [login]);
 
-  const appleSignIn = async (
+  const appleSignIn = useCallback(async (
     identityToken: string,
     email: string,
     fullName: { givenName: string; familyName: string }
@@ -129,9 +129,9 @@ export default function RootLayout() {
       });
     }
     return { isExistingUser: false };
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     if (pushTokenRef.current) {
       await removePushToken(pushTokenRef.current);
       pushTokenRef.current = null;
@@ -139,21 +139,24 @@ export default function RootLayout() {
     await tokenStore.clearTokens();
     queryClient.clear();
     setUser(null);
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     const token = await tokenStore.getAccess();
     if (!token) return;
     const me = await apiFetch<User>('/api/v1/auth/me/');
     setUser(me);
-  };
+  }, []);
 
   // Derive tab bar visibility from URL segments — eliminates context chain latency.
   // Tab indexes have 1 segment e.g. ['(feed)'], detail screens have >1 e.g. ['(feed)', 'album', 'abc']
   const segments = useSegments();
   const isTabBarHidden = segments.length > 1;
 
-  const authState: AuthState = { user, isLoading, login, register, appleSignIn, logout, refreshUser };
+  const authState: AuthState = useMemo(
+    () => ({ user, isLoading, login, register, appleSignIn, logout, refreshUser }),
+    [user, isLoading, login, register, appleSignIn, logout, refreshUser]
+  );
 
   if (isLoading) return null;
 
