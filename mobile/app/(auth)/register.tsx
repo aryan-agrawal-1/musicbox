@@ -1541,8 +1541,7 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const auth = use(AuthContext);
 
-  const appleData = pendingAppleAuth.get();
-  const isAppleMode = appleData !== null;
+  const [isAppleMode] = useState(() => pendingAppleAuth.get() !== null);
 
   const [step, setStep] = useState<OnboardingStep>('username');
   const [direction, setDirection] = useState<1 | -1>(1);

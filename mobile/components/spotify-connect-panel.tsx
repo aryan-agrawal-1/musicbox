@@ -1,4 +1,4 @@
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, Image } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Colors } from '@/constants/colors';
@@ -46,20 +46,12 @@ export function SpotifyConnectPanel({
         }}
       />
 
-      {/* Spotify circle */}
-      <View
-        style={{
-          width: 72,
-          height: 72,
-          borderRadius: 36,
-          backgroundColor: Colors.spotifyGreen,
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 24,
-        }}
-      >
-        <Text style={{ fontSize: 30, fontWeight: '800', color: '#000000' }}>S</Text>
-      </View>
+      {/* Spotify logo */}
+      <Image
+        source={require('@/assets/Spotify_Primary_Logo_RGB_Green.png')}
+        style={{ width: 72, height: 72, marginBottom: 24 }}
+        resizeMode="contain"
+      />
 
       <Text
         style={{

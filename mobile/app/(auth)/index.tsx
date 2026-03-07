@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { Image } from 'expo-image';
 import { Colors } from '@/constants/colors';
 import { AuthContext } from '@/contexts/auth-context';
 
@@ -90,8 +91,14 @@ export default function LandingScreen() {
           justifyContent: 'center',
           alignItems: 'center',
           gap: 10,
+          paddingBottom: 80,
         }}
       >
+        <Image
+          source={require('@/assets/icon-foreground.png')}
+          style={{ width: 110, height: 110, marginBottom: 4 }}
+          contentFit="contain"
+        />
         <Text
           style={{
             fontSize: 40,
@@ -118,13 +125,25 @@ export default function LandingScreen() {
         }}
       >
         {process.env.EXPO_OS === 'ios' && (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-            cornerRadius={16}
-            style={{ height: 56 }}
+          <TouchableOpacity
+            activeOpacity={0.82}
             onPress={handleAppleSignIn}
-          />
+            style={{
+              height: 56,
+              borderRadius: 16,
+              borderCurve: 'continuous',
+              backgroundColor: '#ffffff',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            <Image source="sf:apple.logo" style={{ width: 18, height: 18 }} tintColor="#000000" contentFit="contain" />
+            <Text style={{ fontSize: 17, fontWeight: '600', color: '#000000', letterSpacing: -0.3 }}>
+              Sign in with Apple
+            </Text>
+          </TouchableOpacity>
         )}
 
         <TouchableOpacity

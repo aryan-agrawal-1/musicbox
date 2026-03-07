@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 
@@ -31,12 +31,13 @@ export default function OwnFollowingScreen() {
   } = useFollowingList(username);
 
   const users = data?.pages.flatMap((p) => p.results.map((f) => f.following)) ?? [];
+  const renderItem = useCallback(({ item }: { item: typeof users[number] }) => <FollowListRow user={item} />, []);
 
   return (
     <FlatList
       data={users}
       keyExtractor={(u) => String(u.id)}
-      renderItem={({ item }) => <FollowListRow user={item} />}
+      renderItem={renderItem}
       contentInsetAdjustmentBehavior="automatic"
       onEndReached={() => {
         if (hasNextPage) fetchNextPage();

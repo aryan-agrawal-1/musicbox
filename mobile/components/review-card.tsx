@@ -28,7 +28,7 @@ export function ReviewCard({ review, type = 'album' }: ReviewCardProps) {
     }
     const prev = { isLiked, likesCount };
     setIsLiked(!isLiked);
-    setLikesCount(likesCount + (isLiked ? -1 : 1));
+    setLikesCount(prev => prev + (isLiked ? -1 : 1));
     try {
       await toggleLike.mutateAsync({ liked: isLiked });
     } catch {

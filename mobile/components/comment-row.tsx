@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedStyle,
   withSequence,
   withSpring,
+  withTiming,
   FadeInDown,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -60,8 +61,8 @@ export function CommentRow({ comment, index = 0, onReply, onLike, onUserPress, i
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     scale.value = withSequence(
-      withSpring(1.4, { damping: 15, stiffness: 600 }),
-      withSpring(1.0, { damping: 20, stiffness: 400 }),
+      withSpring(1.3, { damping: 10, stiffness: 800 }),
+      withTiming(1.0, { duration: 80 }),
     );
     onLike(comment.id, comment.is_liked);
   }

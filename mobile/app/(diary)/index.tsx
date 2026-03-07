@@ -1,4 +1,4 @@
-import { use, useState, useEffect, useRef } from 'react';
+import { use, useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, SectionList, ScrollView, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { Link, Stack } from 'expo-router';
 import { Image } from 'expo-image';
@@ -285,6 +285,8 @@ export default function DiaryScreen() {
     sections.push({ title, data: items });
   }
 
+  const renderDiaryItem = useCallback(({ item }: { item: ListeningHistory }) => <DiaryRow entry={item} />, []);
+
   async function onRefresh() {
     setRefreshing(true);
     await Promise.all([refetch(), syncMutation.mutateAsync().catch(() => null)]);
@@ -356,7 +358,7 @@ export default function DiaryScreen() {
         <SectionList
           sections={sections}
           keyExtractor={item => String(item.id)}
-          renderItem={({ item }) => <DiaryRow entry={item} />}
+          renderItem={renderDiaryItem}
           renderSectionHeader={({ section }) => (
             <DiarySectionHeader title={section.title} />
           )}

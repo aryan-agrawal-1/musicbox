@@ -190,6 +190,44 @@ export function filterProfileActivities(
   });
 }
 
+interface AlbumMetaProps {
+  data: Record<string, unknown>;
+  isSongActivity: boolean;
+  showHeader: boolean;
+  timestamp: string;
+}
+
+function AlbumMeta({ data, isSongActivity, showHeader, timestamp }: AlbumMetaProps) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <AlbumArt imageUrl={(data.album_image ?? data.song_image ?? null) as string | null} />
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+          <Text
+            style={{ flex: 1, fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
+            numberOfLines={1}
+          >
+            {isSongActivity
+              ? (data.song_name ?? '') as string
+              : (data.album_name ?? '') as string}
+          </Text>
+          {!showHeader && (
+            <Text style={{ fontSize: 12, color: Colors.textTertiary, paddingTop: 2 }}>
+              {timestamp}
+            </Text>
+          )}
+        </View>
+        <Text style={{ fontSize: 13, color: Colors.textSecondary }} numberOfLines={1}>
+          {(data.artist_name ?? '') as string}
+        </Text>
+        {data.rating || data.rating_value ? (
+          <StarRating value={Number(data.rating_value ?? data.rating)} size={16} />
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 export function ActivityCard({ activity, index = 0, profileUser, isProfileView = false }: ActivityCardProps) {
   const router = useRouter();
   const data = (activity.activity_data ?? {}) as Record<string, unknown>;
@@ -209,7 +247,7 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
     }
     const prev = { isLiked, likesCount };
     setIsLiked(!isLiked);
-    setLikesCount(likesCount + (isLiked ? -1 : 1));
+    setLikesCount(prev => prev + (isLiked ? -1 : 1));
     try {
       await toggleLike.mutateAsync({ liked: isLiked });
     } catch {
@@ -274,38 +312,6 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
 
   const isSongActivity = activity.activity_type === 'song_rating' || activity.activity_type === 'song_review';
 
-  /** Shared album art + metadata block used by both rating and review variants */
-  function AlbumMeta() {
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <AlbumArt imageUrl={(data.album_image ?? data.song_image ?? null) as string | null} />
-        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
-            <Text
-              style={{ flex: 1, fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
-              numberOfLines={1}
-            >
-              {isSongActivity
-                ? (data.song_name ?? '') as string
-                : (data.album_name ?? '') as string}
-            </Text>
-            {!showHeader && (
-              <Text style={{ fontSize: 12, color: Colors.textTertiary, paddingTop: 2 }}>
-                {timestamp}
-              </Text>
-            )}
-          </View>
-          <Text style={{ fontSize: 13, color: Colors.textSecondary }} numberOfLines={1}>
-            {(data.artist_name ?? '') as string}
-          </Text>
-          {data.rating || data.rating_value ? (
-            <StarRating value={Number(data.rating_value ?? data.rating)} size={16} />
-          ) : null}
-        </View>
-      </View>
-    );
-  }
-
   const cardContent = (
     <>
       {/* Header: avatar + name + verb + timestamp (hidden on profile view for rate/review) */}
@@ -315,13 +321,13 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
 
       {/* Rating variant */}
       {(activity.activity_type === 'album_rating' || activity.activity_type === 'song_rating') && (
-        <AlbumMeta />
+        <AlbumMeta data={data} isSongActivity={isSongActivity} showHeader={showHeader} timestamp={timestamp} />
       )}
 
       {/* Review variant */}
       {(activity.activity_type === 'album_review' || activity.activity_type === 'song_review') && (
         <View style={{ gap: 10 }}>
-          <AlbumMeta />
+          <AlbumMeta data={data} isSongActivity={isSongActivity} showHeader={showHeader} timestamp={timestamp} />
           {data.content ? (
             <View
               style={{
