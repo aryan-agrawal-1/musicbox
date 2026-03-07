@@ -13,6 +13,9 @@ class User(AbstractUser):
     # Username change tracking
     username_last_changed = models.DateTimeField(null=True, blank=True)
 
+    # Apple Sign In
+    apple_user_id = models.CharField(max_length=255, unique=True, null=True, blank=True, db_index=True)
+
     # Spotify integration
     spotify_user_id = models.CharField(max_length=100, unique=True, null=True, blank=True, db_index=True)
     spotify_access_token = models.CharField(max_length=500, null=True, blank=True)

@@ -15,6 +15,11 @@ export interface AuthState {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  appleSignIn: (
+    identityToken: string,
+    email: string,
+    fullName: { givenName: string; familyName: string }
+  ) => Promise<{ isExistingUser: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -24,6 +29,7 @@ export const AuthContext = createContext<AuthState>({
   isLoading: true,
   login: async () => {},
   register: async () => {},
+  appleSignIn: async () => ({ isExistingUser: false }),
   logout: async () => {},
   refreshUser: async () => {},
 });

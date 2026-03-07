@@ -1,4 +1,6 @@
 from rest_framework import status, generics, serializers
+from rest_framework_simplejwt.tokens import RefreshToken
+from .apple_auth import verify_apple_identity_token, AppleTokenError
 from django.db.models import Q, Count
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -333,3 +335,126 @@ def spotify_status(request):
         'spotify_user_id': user.spotify_user_id,
         'connected_at': user.spotify_connected_at,
     })
+
+
+class AppleSignInView(generics.GenericAPIView):
+    """
+    POST /api/v1/auth/apple/
+
+    Body: { identity_token, email?, full_name?: { givenName, familyName } }
+
+    Returns (existing user): { access, refresh }
+    Returns (new user):      { is_new_user: true, apple_uid, email, full_name }
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        identity_token = request.data.get("identity_token", "").strip()
+        if not identity_token:
+            return Response({"detail": "identity_token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            claims = verify_apple_identity_token(identity_token)
+        except AppleTokenError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        apple_uid = claims["sub"]
+        token_email = claims.get("email") or request.data.get("email", "")
+        full_name = request.data.get("full_name") or {}
+
+        # Returning Apple user
+        try:
+            user = User.objects.get(apple_user_id=apple_uid)
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            })
+        except User.DoesNotExist:
+            pass
+
+        # Email collision: link Apple ID to an existing account with the same email
+        if token_email:
+            existing = User.objects.filter(email__iexact=token_email).first()
+            if existing:
+                existing.apple_user_id = apple_uid
+                existing.save(update_fields=["apple_user_id"])
+                refresh = RefreshToken.for_user(existing)
+                return Response({
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                })
+
+        # Genuinely new user — must pick a username
+        return Response({
+            "is_new_user": True,
+            "apple_uid": apple_uid,
+            "email": token_email,
+            "full_name": full_name,
+        })
+
+
+class AppleRegisterView(generics.GenericAPIView):
+    """
+    POST /api/v1/auth/apple/register/
+
+    Body: { identity_token, username, email?, full_name?: { givenName, familyName } }
+    Returns: { access, refresh }
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        import re
+        from django.db import IntegrityError
+
+        identity_token = request.data.get("identity_token", "").strip()
+        if not identity_token:
+            return Response({"detail": "identity_token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            claims = verify_apple_identity_token(identity_token)
+        except AppleTokenError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        apple_uid = claims["sub"]
+        username = request.data.get("username", "").strip()
+        email = request.data.get("email", "").strip()
+        full_name = request.data.get("full_name") or {}
+
+        # Race condition guard: already registered between sign-in and register calls
+        existing = User.objects.filter(apple_user_id=apple_uid).first()
+        if existing:
+            refresh = RefreshToken.for_user(existing)
+            return Response({
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            }, status=status.HTTP_201_CREATED)
+
+        if not username or not re.match(r'^[a-zA-Z0-9_]{3,30}$', username):
+            return Response(
+                {"detail": "Valid username required (3-30 chars, letters/numbers/underscores)."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if User.objects.filter(username__iexact=username).exists():
+            return Response({"username": ["This username is already taken."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User(
+            username=username,
+            email=email,
+            first_name=(full_name.get("givenName") or "").strip(),
+            last_name=(full_name.get("familyName") or "").strip(),
+            apple_user_id=apple_uid,
+        )
+        user.set_unusable_password()
+        try:
+            user.save()
+        except IntegrityError:
+            # Another concurrent request won the race on apple_user_id unique constraint
+            user = User.objects.get(apple_user_id=apple_uid)
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+        }, status=status.HTTP_201_CREATED)

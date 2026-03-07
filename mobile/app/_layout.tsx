@@ -19,6 +19,7 @@ import {
   handleLastNotificationResponse,
 } from '@/lib/notifications';
 import { AuthContext, type AuthState, type RegisterData } from '@/contexts/auth-context';
+import { pendingAppleAuth } from '@/lib/pending-apple-auth';
 import { Colors } from '@/constants/colors';
 import type { User, AuthTokens } from '@/types/api';
 
@@ -64,7 +65,11 @@ export default function RootLayout() {
       await handleLastNotificationResponse();
     }
 
-    setup();
+    setup().catch(() => {
+      // Push notification registration may fail in development if the provisioning
+      // profile does not include the aps-environment entitlement. Swallow silently —
+      // the rest of the app works fine without push tokens.
+    });
     return () => {
       mounted = false;
       notifListener.current?.remove();
@@ -89,6 +94,43 @@ export default function RootLayout() {
     await login(data.username, data.password);
   };
 
+  const appleSignIn = async (
+    identityToken: string,
+    email: string,
+    fullName: { givenName: string; familyName: string }
+  ): Promise<{ isExistingUser: boolean }> => {
+    const result = await apiFetch<{
+      access?: string;
+      refresh?: string;
+      is_new_user?: boolean;
+      apple_uid?: string;
+      email?: string;
+      full_name?: { givenName: string; familyName: string };
+    }>('/api/v1/auth/apple/', {
+      method: 'POST',
+      body: JSON.stringify({ identity_token: identityToken, email, full_name: fullName }),
+    });
+
+    if (result.access && result.refresh) {
+      // Existing user — store tokens and restore session
+      await tokenStore.setTokens(result.access, result.refresh);
+      const me = await apiFetch<User>('/api/v1/auth/me/');
+      setUser(me);
+      return { isExistingUser: true };
+    }
+
+    // New user — stash pending state so register.tsx can complete onboarding
+    if (result.is_new_user && result.apple_uid) {
+      pendingAppleAuth.set({
+        identityToken,
+        appleUid: result.apple_uid,
+        email: result.email ?? email,
+        fullName,
+      });
+    }
+    return { isExistingUser: false };
+  };
+
   const logout = async () => {
     if (pushTokenRef.current) {
       await removePushToken(pushTokenRef.current);
@@ -111,7 +153,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const isTabBarHidden = segments.length > 1;
 
-  const authState: AuthState = { user, isLoading, login, register, logout, refreshUser };
+  const authState: AuthState = { user, isLoading, login, register, appleSignIn, logout, refreshUser };
 
   if (isLoading) return null;
 

@@ -1,8 +1,11 @@
+import { use } from 'react';
 import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { Colors } from '@/constants/colors';
+import { AuthContext } from '@/contexts/auth-context';
 
 const TILE_COLORS = [
   '#C53030', '#2B6CB0', '#276749',
@@ -13,10 +16,42 @@ const TILE_COLORS = [
 
 export default function LandingScreen() {
   const router = useRouter();
+  const auth = use(AuthContext);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tileW = width / 3;
   const tileH = height / 4;
+
+  async function handleAppleSignIn() {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const result = await auth.appleSignIn(
+        credential.identityToken ?? '',
+        credential.email ?? '',
+        {
+          givenName: credential.fullName?.givenName ?? '',
+          familyName: credential.fullName?.familyName ?? '',
+        }
+      );
+
+      if (!result.isExistingUser) {
+        // New user — navigate to register; the flow detects pendingAppleAuth automatically
+        router.push('/(auth)/register');
+      }
+      // Existing user: auth context set the user, root layout re-renders to tabs
+    } catch (err: unknown) {
+      // ERR_REQUEST_CANCELED = user dismissed the Apple sheet — ignore silently
+      if ((err as { code?: string }).code !== 'ERR_REQUEST_CANCELED') {
+        console.error('[AppleSignIn]', err);
+      }
+    }
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -82,6 +117,16 @@ export default function LandingScreen() {
           gap: 12,
         }}
       >
+        {process.env.EXPO_OS === 'ios' && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+            cornerRadius={16}
+            style={{ height: 56 }}
+            onPress={handleAppleSignIn}
+          />
+        )}
+
         <TouchableOpacity
           activeOpacity={0.82}
           onPress={() => router.push('/(auth)/login')}

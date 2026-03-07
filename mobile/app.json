@@ -14,7 +14,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.aryan.muze"
+      "bundleIdentifier": "com.aryan.muze",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.aryan.muze",
@@ -53,7 +57,8 @@
           "photosPermission": "Allow Muze to access your photos to set a profile picture."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-apple-authentication"
     ],
     "owner": "aryanagrawal5"
   }

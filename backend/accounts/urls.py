@@ -16,6 +16,10 @@ urlpatterns = [
     # Avatar upload
     path('avatar/upload-url/', views.get_avatar_upload_url, name='avatar-upload-url'),
 
+    # Apple Sign In
+    path('apple/', views.AppleSignInView.as_view(), name='apple-signin'),
+    path('apple/register/', views.AppleRegisterView.as_view(), name='apple-register'),
+
     # Spotify OAuth
     path('spotify/connect/', views.spotify_connect, name='spotify-connect'),
     path('spotify/callback/', views.spotify_callback, name='spotify-callback'),

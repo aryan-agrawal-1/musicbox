@@ -38,6 +38,7 @@ import { AuthContext } from '@/contexts/auth-context';
 import { apiFetch, ApiError } from '@/lib/api';
 import { tokenStore } from '@/lib/auth';
 import { onboardingStore } from '@/lib/onboarding-store';
+import { pendingAppleAuth } from '@/lib/pending-apple-auth';
 import { connectSpotify } from '@/lib/spotify';
 import { SpotifyConnectPanel } from '@/components/spotify-connect-panel';
 import { Colors } from '@/constants/colors';
@@ -79,7 +80,7 @@ type OnboardingStep = 'username' | 'account' | 'bio' | 'pfp' | 'spotify' | 'trac
 type CoreStep = 'username' | 'account' | 'bio' | 'pfp';
 const CORE_STEPS: CoreStep[] = ['username', 'account', 'bio', 'pfp'];
 
-function DotIndicator({ step }: { step: CoreStep }) {
+function DotIndicator({ step, isAppleMode }: { step: CoreStep; isAppleMode?: boolean }) {
   const idx = CORE_STEPS.indexOf(step);
 
   const w0 = useSharedValue(idx === 0 ? 24 : 10);
@@ -122,7 +123,7 @@ function DotIndicator({ step }: { step: CoreStep }) {
   return (
     <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
       <Animated.View style={s0} />
-      <Animated.View style={s1} />
+      {!isAppleMode && <Animated.View style={s1} />}
       <Animated.View style={s2} />
       <Animated.View style={s3} />
     </View>
@@ -135,15 +136,31 @@ interface UsernameStepProps {
   username: string;
   setUsername: (v: string) => void;
   onContinue: () => void;
+  onAppleComplete?: () => Promise<void>;
 }
 
-function UsernameStep({ username, setUsername, onContinue }: UsernameStepProps) {
+function UsernameStep({ username, setUsername, onContinue, onAppleComplete }: UsernameStepProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
   const [status, setStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isAppleRegistering, setIsAppleRegistering] = useState(false);
+  const [appleError, setAppleError] = useState<string | null>(null);
+
+  async function handlePress() {
+    if (!onAppleComplete) { onContinue(); return; }
+    setIsAppleRegistering(true);
+    setAppleError(null);
+    try {
+      await onAppleComplete();
+    } catch (e) {
+      setAppleError(e instanceof ApiError ? e.message : 'Registration failed. Please try again.');
+    } finally {
+      setIsAppleRegistering(false);
+    }
+  }
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -237,7 +254,7 @@ function UsernameStep({ username, setUsername, onContinue }: UsernameStepProps) 
             autoCorrect={false}
             autoComplete="username-new"
             returnKeyType="done"
-            onSubmitEditing={() => { if (status === 'available') onContinue(); }}
+            onSubmitEditing={() => { if (status === 'available' && !isAppleRegistering) handlePress(); }}
             value={username}
             onChangeText={v => setUsername(v.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''))}
             onFocus={() => { borderAnim.value = withTiming(1, { duration: 200 }); }}
@@ -269,9 +286,14 @@ function UsernameStep({ username, setUsername, onContinue }: UsernameStepProps) 
 
         {/* Continue — pushed to bottom via marginTop auto */}
         <View style={{ marginTop: 'auto' }}>
+          {appleError && (
+            <Text style={{ fontSize: 13, color: Colors.destructive, marginBottom: 8 }}>
+              {appleError}
+            </Text>
+          )}
           <Pressable
-            onPress={onContinue}
-            disabled={status !== 'available'}
+            onPress={handlePress}
+            disabled={status !== 'available' || isAppleRegistering}
             style={{
               height: 52,
               borderRadius: 14,
@@ -279,10 +301,13 @@ function UsernameStep({ username, setUsername, onContinue }: UsernameStepProps) 
               backgroundColor: Colors.accent,
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: status === 'available' ? 1 : 0.35,
+              opacity: status === 'available' && !isAppleRegistering ? 1 : 0.35,
             }}
           >
-            <Text style={{ fontSize: 17, fontWeight: '600', color: '#000000' }}>Continue →</Text>
+            {isAppleRegistering
+              ? <ActivityIndicator color="#000000" />
+              : <Text style={{ fontSize: 17, fontWeight: '600', color: '#000000' }}>Continue →</Text>
+            }
           </Pressable>
         </View>
       </View>
@@ -1516,10 +1541,30 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const auth = use(AuthContext);
 
+  const appleData = pendingAppleAuth.get();
+  const isAppleMode = appleData !== null;
+
   const [step, setStep] = useState<OnboardingStep>('username');
   const [direction, setDirection] = useState<1 | -1>(1);
   const [username, setUsername] = useState('');
   const [recentTracks, setRecentTracks] = useState<ListeningHistory[]>([]);
+
+  async function handleAppleRegister() {
+    const data = pendingAppleAuth.get();
+    if (!data) throw new Error('Apple auth state lost. Please tap Sign in with Apple again.');
+    const tokens = await apiFetch<AuthTokens>('/api/v1/auth/apple/register/', {
+      method: 'POST',
+      body: JSON.stringify({
+        identity_token: data.identityToken,
+        username,
+        email: data.email,
+        full_name: data.fullName,
+      }),
+    });
+    await tokenStore.setTokens(tokens.access, tokens.refresh);
+    pendingAppleAuth.clear();
+    advance('bio');
+  }
 
   const enterAnimation =
     direction === 1
@@ -1565,7 +1610,7 @@ export default function RegisterScreen() {
               zIndex: 10,
             }}
           >
-            <DotIndicator step={step as CoreStep} />
+            <DotIndicator step={step as CoreStep} isAppleMode={isAppleMode} />
           </View>
         )}
 
@@ -1581,6 +1626,7 @@ export default function RegisterScreen() {
               username={username}
               setUsername={setUsername}
               onContinue={() => advance('account')}
+              onAppleComplete={isAppleMode ? handleAppleRegister : undefined}
             />
           )}
           {step === 'account' && (
@@ -1592,7 +1638,7 @@ export default function RegisterScreen() {
           )}
           {step === 'bio' && (
             <BioStep
-              onBack={() => goBack('account')}
+              onBack={() => goBack(isAppleMode ? 'username' : 'account')}
               onContinue={() => advance('pfp')}
               onSkip={() => advance('pfp')}
             />
