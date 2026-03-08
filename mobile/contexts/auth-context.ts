@@ -21,6 +21,7 @@ export interface AuthState {
     fullName: { givenName: string; familyName: string }
   ) => Promise<{ isExistingUser: boolean }>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -31,5 +32,6 @@ export const AuthContext = createContext<AuthState>({
   register: async () => {},
   appleSignIn: async () => ({ isExistingUser: false }),
   logout: async () => {},
+  deleteAccount: async () => {},
   refreshUser: async () => {},
 });

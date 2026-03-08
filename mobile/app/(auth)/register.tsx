@@ -642,6 +642,10 @@ function BioStep({ onBack, onContinue, onSkip }: BioStepProps) {
   }, []);
 
   useEffect(() => {
+    // Keyboard may already be visible when arriving from a previous step
+    const metrics = Keyboard.metrics();
+    if (metrics) setKeyboardHeight(metrics.height);
+
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const showSub = Keyboard.addListener(showEvent, e => setKeyboardHeight(e.endCoordinates.height));
@@ -649,13 +653,21 @@ function BioStep({ onBack, onContinue, onSkip }: BioStepProps) {
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
+  // Dismiss keyboard first so the next screen doesn't appear under an open keyboard
+  async function dismissThenRun(fn: () => void | Promise<void>) {
+    Keyboard.dismiss();
+    if (Platform.OS === 'ios') await new Promise<void>(r => setTimeout(r, 250));
+    await fn();
+  }
+
   async function handleContinue() {
     const trimmed = bio.trim();
     if (!trimmed) {
-      onContinue();
+      await dismissThenRun(onContinue);
       return;
     }
     setIsLoading(true);
+    Keyboard.dismiss();
     try {
       await apiFetch('/api/v1/auth/me/', {
         method: 'PATCH',
@@ -665,6 +677,7 @@ function BioStep({ onBack, onContinue, onSkip }: BioStepProps) {
       // Best-effort — continue regardless
     } finally {
       setIsLoading(false);
+      if (Platform.OS === 'ios') await new Promise<void>(r => setTimeout(r, 250));
       onContinue();
     }
   }
@@ -781,7 +794,7 @@ function BioStep({ onBack, onContinue, onSkip }: BioStepProps) {
             )}
           </Pressable>
           <Pressable
-            onPress={onSkip}
+            onPress={() => dismissThenRun(onSkip)}
             style={{ alignItems: 'center', paddingVertical: 10 }}
           >
             <Text style={{ fontSize: 15, color: Colors.textTertiary }}>Skip for now</Text>
@@ -1550,7 +1563,7 @@ export default function RegisterScreen() {
 
   async function handleAppleRegister() {
     const data = pendingAppleAuth.get();
-    if (!data) throw new Error('Apple auth state lost. Please tap Sign in with Apple again.');
+    if (!data) throw new Error('Apple auth state lost. Please tap Continue with Apple again.');
     const tokens = await apiFetch<AuthTokens>('/api/v1/auth/apple/register/', {
       method: 'POST',
       body: JSON.stringify({

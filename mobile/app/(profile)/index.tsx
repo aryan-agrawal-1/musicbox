@@ -24,6 +24,7 @@ import {
   displayName,
 } from '@/components/profile-tabs';
 import { useUserRatings } from '@/hooks/use-profile';
+import { useAvatarUpload } from '@/hooks/use-avatar';
 import { formatCount } from '@/lib/format';
 import type { User, AlbumRating, SongRating } from '@/types/api';
 
@@ -34,11 +35,13 @@ function OwnProfileHero({
   ratings,
   onFollowersPress,
   onFollowingPress,
+  onAvatarPress,
 }: {
   user: User;
   ratings: Array<AlbumRating | SongRating>;
   onFollowersPress: () => void;
   onFollowingPress: () => void;
+  onAvatarPress: () => void;
 }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -137,11 +140,42 @@ function OwnProfileHero({
         }}
       >
         <View style={{ borderRadius: 44, boxShadow: '0 0 0 3px rgba(255,255,255,0.9)' }}>
-          <AvatarImage
-            uri={user.avatar_url}
-            size={88}
-            displayName={displayName(user)}
-          />
+          <Pressable
+            onPress={!user.avatar_url ? onAvatarPress : undefined}
+            disabled={!!user.avatar_url}
+            style={({ pressed }) => ({
+              borderRadius: 44,
+              opacity: pressed && !user.avatar_url ? 0.75 : 1,
+            })}
+          >
+            <AvatarImage
+              uri={user.avatar_url}
+              size={88}
+              displayName={displayName(user)}
+            />
+          </Pressable>
+          {!user.avatar_url && (
+            <View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                right: -2,
+                width: 26,
+                height: 26,
+                borderRadius: 13,
+                backgroundColor: Colors.surfaceHigh,
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 0 2px rgba(255,255,255,0.9)',
+              }}
+            >
+              <Image
+                source="sf:camera.fill"
+                style={{ width: 12, height: 10 }}
+                tintColor={Colors.textPrimary}
+              />
+            </View>
+          )}
         </View>
 
         <View style={{ alignItems: 'center', gap: 2 }}>
@@ -294,6 +328,7 @@ export default function ProfileScreen() {
   const user = auth.user;
   const username = user?.username ?? '';
 
+  const { pickAndUploadAvatar } = useAvatarUpload(auth.refreshUser);
   const ratingsQuery = useUserRatings(username);
   const ratings = ratingsQuery.data?.pages.flatMap((p) => p.results) ?? [];
 
@@ -366,6 +401,7 @@ export default function ProfileScreen() {
           ratings={ratings}
           onFollowersPress={() => router.push('/(profile)/followers')}
           onFollowingPress={() => router.push('/(profile)/following')}
+          onAvatarPress={pickAndUploadAvatar}
         />
 
         <View

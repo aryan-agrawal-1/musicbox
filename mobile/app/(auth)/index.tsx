@@ -141,7 +141,7 @@ export default function LandingScreen() {
           >
             <Image source="sf:apple.logo" style={{ width: 18, height: 18 }} tintColor="#000000" contentFit="contain" />
             <Text style={{ fontSize: 17, fontWeight: '600', color: '#000000', letterSpacing: -0.3 }}>
-              Sign in with Apple
+            Continue with Apple
             </Text>
           </TouchableOpacity>
         )}

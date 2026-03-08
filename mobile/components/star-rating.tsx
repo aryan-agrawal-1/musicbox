@@ -1,5 +1,6 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { View, Text } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -17,6 +18,8 @@ interface StarRatingProps {
 }
 
 const STAR_GAP = 4;
+// Hoisted — never changes, no need to recreate per render
+const SPRING = { damping: 25, stiffness: 600 };
 
 function computeRating(x: number, starWidth: number): number {
   const slotWidth = starWidth + STAR_GAP;
@@ -36,7 +39,7 @@ function Star({
 }: {
   fill: number;
   size: number;
-  scale: Animated.SharedValue<number>;
+  scale: { value: number };
 }) {
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -76,6 +79,7 @@ export function getRatingLabel(rating: number): string {
 
 export function StarRating({ value, onChange, size = 28 }: StarRatingProps) {
   const interactive = !!onChange;
+  // Ref for transient drag value — avoids re-render on every move event
   const lastRating = useRef(value);
   const rowRef = useRef<View>(null);
   const rowPageX = useRef(0);
@@ -94,25 +98,22 @@ export function StarRating({ value, onChange, size = 28 }: StarRatingProps) {
     });
   }
 
-  const spring = { damping: 25, stiffness: 600 };
-
   function resetAllStars() {
-    scales.forEach(s => { s.value = withSpring(1.0, spring); });
+    scales.forEach(s => { s.value = withSpring(1.0, SPRING); });
   }
 
   function pulseStar(idx: number) {
-    // Immediately return all other stars to 1.0, cancelling any in-flight animations
     scales.forEach((s, i) => {
-      if (i !== idx) s.value = withSpring(1.0, spring);
+      if (i !== idx) s.value = withSpring(1.0, SPRING);
     });
     scales[idx].value = withSequence(
-      withSpring(1.1, spring),
-      withSpring(1.0, spring),
+      withSpring(1.1, SPRING),
+      withSpring(1.0, SPRING),
     );
   }
 
-  function handleTouch(pageX: number) {
-    const x = pageX - rowPageX.current;
+  function handleTouch(absoluteX: number) {
+    const x = absoluteX - rowPageX.current;
     const next = computeRating(x, size);
     if (next !== lastRating.current) {
       const starIdx = Math.ceil(next) - 1;
@@ -125,36 +126,48 @@ export function StarRating({ value, onChange, size = 28 }: StarRatingProps) {
     }
   }
 
-  const responderProps = interactive
-    ? {
-        onStartShouldSetResponder: () => true,
-        onMoveShouldSetResponder: () => true,
-        onResponderGrant: (e: { nativeEvent: { pageX: number } }) => {
-          measureRow();
-          handleTouch(e.nativeEvent.pageX);
-        },
-        onResponderMove: (e: { nativeEvent: { pageX: number } }) => {
-          handleTouch(e.nativeEvent.pageX);
-        },
-        // Guarantee all stars return to 1.0 when the finger lifts or gesture is cancelled
-        onResponderRelease: resetAllStars,
-        onResponderTerminate: resetAllStars,
-      }
-    : {};
+  // Store callbacks in refs so the memoized gesture always calls fresh closures
+  // without needing to be recreated each render (advanced-event-handler-refs)
+  const handleTouchRef = useRef(handleTouch);
+  handleTouchRef.current = handleTouch;
+  const resetAllStarsRef = useRef(resetAllStars);
+  resetAllStarsRef.current = resetAllStars;
 
-  return (
+  // Memoized gesture — recreated only if `interactive` changes.
+  // activeOffsetX: claim gesture after 5px horizontal movement.
+  // failOffsetY: immediately fail if finger moves 5px vertically first,
+  // letting the native sheet's swipe-to-dismiss take over.
+  const gesture = useMemo(() => {
+    if (!interactive) return Gesture.Pan();
+    return Gesture.Pan()
+      .runOnJS(true)
+      .activeOffsetX([-5, 5])
+      .failOffsetY([-5, 5])
+      .onBegin((e) => {
+        measureRow();
+        handleTouchRef.current(e.absoluteX);
+      })
+      .onUpdate((e) => {
+        handleTouchRef.current(e.absoluteX);
+      })
+      .onFinalize(() => {
+        resetAllStarsRef.current();
+      });
+  }, [interactive]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const starRow = (
     <View
       ref={rowRef}
       onLayout={interactive ? measureRow : undefined}
       style={{ flexDirection: 'row', gap: STAR_GAP }}
-      {...responderProps}
     >
       {([1, 2, 3, 4, 5] as const).map((star, i) => {
         const fill = value >= star ? 1 : value >= star - 0.5 ? 0.5 : 0;
-        return (
-          <Star key={star} fill={fill} size={size} scale={scales[i]} />
-        );
+        return <Star key={star} fill={fill} size={size} scale={scales[i]} />;
       })}
     </View>
   );
+
+  if (!interactive) return starRow;
+  return <GestureDetector gesture={gesture}>{starRow}</GestureDetector>;
 }

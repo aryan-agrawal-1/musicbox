@@ -10,6 +10,7 @@ import { AlbumCard } from '@/components/album-card';
 import { TrackRow } from '@/components/track-row';
 import { SectionHeader } from '@/components/section-header';
 import { SkeletonCard } from '@/components/skeleton-card';
+import { AvatarImage } from '@/components/avatar-image';
 import { useSearch, useListeningHistory, useUserSearch } from '@/hooks/use-search';
 import { usePopularAlbums, usePopularArtists, usePopularUsers } from '@/hooks/use-feed';
 import { chunk } from '@/lib/format';
@@ -24,6 +25,7 @@ import type { Album, Artist, Song, User } from '@/types/api';
 
 function toAlbum(item: SpotifyAlbumResult): Album {
   return {
+    id: 0,
     spotify_id: item.id,
     name: item.name,
     album_type: item.album_type,
@@ -136,12 +138,7 @@ function UserCircle({ user }: { user: User }) {
       onPress={() => router.push(`/user/${user.username}` as `/${string}`)}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: 72, alignItems: 'center', gap: 8 })}
     >
-      <Image
-        source={user.avatar_url ? { uri: user.avatar_url } : undefined}
-        style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.surfaceHigh }}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-      />
+      <AvatarImage uri={user.avatar_url} size={64} displayName={user.username} />
       <Text
         style={{ fontSize: 12, color: Colors.textPrimary, textAlign: 'center', fontWeight: '500' }}
         numberOfLines={2}
@@ -234,17 +231,7 @@ function UserRow({ user }: { user: User }) {
           paddingVertical: 10,
         }}
       >
-        <Image
-          source={user.avatar_url ? { uri: user.avatar_url } : undefined}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: Colors.surfaceHigh,
-          }}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-        />
+        <AvatarImage uri={user.avatar_url} size={44} displayName={user.username} />
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <Text
             style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
@@ -328,6 +315,7 @@ export default function SearchScreen() {
       if (!seen.has(id)) {
         seen.add(id);
         albums.push({
+          id: 0,
           spotify_id: id,
           name: entry.song.album_name,
           image_url: entry.song.album_image,

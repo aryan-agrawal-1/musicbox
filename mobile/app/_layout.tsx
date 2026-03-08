@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Stack, useSegments } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, DarkTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -141,6 +142,18 @@ export default function RootLayout() {
     setUser(null);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    // Remove push token first while the user still exists, then delete account.
+    if (pushTokenRef.current) {
+      await removePushToken(pushTokenRef.current);
+      pushTokenRef.current = null;
+    }
+    await apiFetch<void>('/api/v1/auth/me/', { method: 'DELETE' });
+    await tokenStore.clearTokens();
+    queryClient.clear();
+    setUser(null);
+  }, []);
+
   const refreshUser = useCallback(async () => {
     const token = await tokenStore.getAccess();
     if (!token) return;
@@ -154,13 +167,14 @@ export default function RootLayout() {
   const isTabBarHidden = segments.length > 1;
 
   const authState: AuthState = useMemo(
-    () => ({ user, isLoading, login, register, appleSignIn, logout, refreshUser }),
-    [user, isLoading, login, register, appleSignIn, logout, refreshUser]
+    () => ({ user, isLoading, login, register, appleSignIn, logout, deleteAccount, refreshUser }),
+    [user, isLoading, login, register, appleSignIn, logout, deleteAccount, refreshUser]
   );
 
   if (isLoading) return null;
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={DarkTheme}>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
@@ -195,5 +209,6 @@ export default function RootLayout() {
         </AuthContext>
       </QueryClientProvider>
     </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

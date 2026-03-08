@@ -11,7 +11,6 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useMutation } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
 
@@ -21,6 +20,7 @@ import { connectSpotify } from '@/lib/spotify';
 import { AvatarImage } from '@/components/avatar-image';
 import { apiFetch } from '@/lib/api';
 import { useSyncListeningHistory } from '@/hooks/use-diary';
+import { useAvatarUpload } from '@/hooks/use-avatar';
 import { displayName } from '@/components/profile-tabs';
 import type { User } from '@/types/api';
 
@@ -153,7 +153,7 @@ export default function SettingsScreen() {
   const user = auth.user;
 
   const syncMutation = useSyncListeningHistory();
-  const [avatarLoading, setAvatarLoading] = useState(false);
+  const { avatarLoading, pickAndUploadAvatar, removeAvatar } = useAvatarUpload(auth.refreshUser);
   const [spotifyConnecting, setSpotifyConnecting] = useState(false);
 
   const disconnectMutation = useMutation({
@@ -163,8 +163,7 @@ export default function SettingsScreen() {
   });
 
   const deleteAccountMutation = useMutation({
-    mutationFn: () => apiFetch<void>('/api/v1/auth/me/', { method: 'DELETE' }),
-    onSuccess: () => auth.logout(),
+    mutationFn: () => auth.deleteAccount(),
   });
 
   if (!user) return null;
@@ -208,82 +207,6 @@ export default function SettingsScreen() {
       }
       buttons.push({ text: 'Cancel', style: 'cancel' });
       Alert.alert('Change Photo', undefined, buttons);
-    }
-  }
-
-  async function pickAndUploadAvatar() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission Required',
-        'Please allow photo access in Settings to change your profile photo.',
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
-
-    if (result.canceled || !result.assets[0]) return;
-
-    setAvatarLoading(true);
-    try {
-      const asset = result.assets[0];
-      const mimeType = asset.mimeType ?? 'image/jpeg';
-
-      // Step 1: Get presigned PUT URL from Django
-      const { upload_url, public_url } = await apiFetch<{
-        upload_url: string;
-        public_url: string;
-      }>('/api/v1/auth/avatar/upload-url/', {
-        method: 'POST',
-        body: JSON.stringify({ content_type: mimeType }),
-      });
-
-      // Step 2: Upload image binary directly to R2
-      const imageResponse = await fetch(asset.uri);
-      const blob = await imageResponse.blob();
-      const uploadResponse = await fetch(upload_url, {
-        method: 'PUT',
-        body: blob,
-        headers: { 'Content-Type': mimeType },
-      });
-      if (!uploadResponse.ok) throw new Error('Upload to R2 failed');
-
-      // Step 3: Save the public URL in Django
-      await apiFetch<User>('/api/v1/auth/me/', {
-        method: 'PATCH',
-        body: JSON.stringify({ avatar_url: public_url }),
-      });
-
-      await auth.refreshUser();
-
-      if (process.env.EXPO_OS === 'ios') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to update photo. Please try again.');
-    } finally {
-      setAvatarLoading(false);
-    }
-  }
-
-  async function removeAvatar() {
-    setAvatarLoading(true);
-    try {
-      await apiFetch<User>('/api/v1/auth/me/', {
-        method: 'PATCH',
-        body: JSON.stringify({ avatar_url: null }),
-      });
-      await auth.refreshUser();
-    } catch {
-      Alert.alert('Error', 'Failed to remove photo. Please try again.');
-    } finally {
-      setAvatarLoading(false);
     }
   }
 
