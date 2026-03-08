@@ -13,6 +13,7 @@ import { TrackRow } from '@/components/track-row';
 import { ReviewCard } from '@/components/review-card';
 import { SectionHeader } from '@/components/section-header';
 import { SkeletonCard } from '@/components/skeleton-card';
+import { HeroBackButton } from '@/components/hero-back-button';
 import { formatCount } from '@/lib/format';
 
 function Separator() {
@@ -54,6 +55,7 @@ export default function AlbumScreen() {
             </View>
           </View>
         </ScrollView>
+        <HeroBackButton />
       </View>
     );
   }
@@ -142,6 +144,8 @@ export default function AlbumScreen() {
               </Text>
             </View>
           </View>
+
+          <HeroBackButton />
         </View>
 
         {/* ── Rating Summary ── */}

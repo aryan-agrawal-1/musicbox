@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, useWindowDimensions } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { Colors } from '@/constants/colors';
 import { AlbumCard } from '@/components/album-card';
 import { SectionHeader } from '@/components/section-header';
 import { SkeletonCard } from '@/components/skeleton-card';
+import { HeroBackButton } from '@/components/hero-back-button';
 import { useArtist } from '@/hooks/use-artist';
 import { formatCount } from '@/lib/format';
 import type { Album } from '@/types/api';
@@ -43,7 +44,6 @@ function getInitials(name: string): string {
 
 export default function ArtistScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { data: artist, isLoading, error, refetch } = useArtist(id);
@@ -95,6 +95,7 @@ export default function ArtistScreen() {
             </View>
           </View>
         </ScrollView>
+        <HeroBackButton />
       </View>
     );
   }
@@ -235,24 +236,7 @@ export default function ArtistScreen() {
             ) : null}
           </View>
 
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={8}
-            style={({ pressed }) => ({
-              position: 'absolute',
-              top: insets.top + 8,
-              left: 16,
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'rgba(11,11,11,0.5)',
-              opacity: pressed ? 0.75 : 1,
-            })}
-          >
-            <Image source="sf:chevron.left" style={{ width: 14, height: 14 }} tintColor={Colors.textPrimary} />
-          </Pressable>
+          <HeroBackButton />
         </View>
 
         <Animated.View

@@ -8,7 +8,7 @@ export const sharedStackOptions = {
   headerShadowVisible: false,
   headerLargeTitleShadowVisible: false,
   headerLargeTitle: true,
-  headerBackButtonDisplayMode: 'minimal',
+  headerBackButtonDisplayMode: 'minimal' as const,
   headerTitleStyle: { color: Colors.textPrimary },
   headerLargeTitleStyle: { color: Colors.textPrimary },
   contentStyle: { backgroundColor: Colors.background },

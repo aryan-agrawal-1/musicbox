@@ -19,6 +19,7 @@ import { Colors } from '@/constants/colors';
 import { AuthContext } from '@/contexts/auth-context';
 import { AvatarImage } from '@/components/avatar-image';
 import { SkeletonCard } from '@/components/skeleton-card';
+import { HeroBackButton } from '@/components/hero-back-button';
 import {
   ActivityTab,
   RatingsTab,
@@ -393,6 +394,7 @@ export default function UserScreen() {
             </View>
           </View>
         </ScrollView>
+        <HeroBackButton />
       </View>
     );
   }
@@ -426,6 +428,7 @@ export default function UserScreen() {
             Tap to retry
           </Text>
         </Pressable>
+        <HeroBackButton />
       </View>
     );
   }
@@ -439,6 +442,7 @@ export default function UserScreen() {
           headerTintColor: Colors.textPrimary,
         }}
       />
+      <HeroBackButton />
       <ScrollView
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{ paddingBottom: 48 + insets.bottom }}

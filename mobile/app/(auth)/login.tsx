@@ -74,11 +74,8 @@ export default function LoginScreen() {
           headerShown: true,
           headerTransparent: true,
           headerShadowVisible: false,
-          headerLargeTitle: true,
-          headerLargeTitleShadowVisible: false,
-          title: 'Welcome back',
-          headerTitleStyle: { color: Colors.textPrimary },
-          headerLargeTitleStyle: { color: Colors.textPrimary },
+          title: '',
+          headerTintColor: Colors.textPrimary,
           headerBackButtonDisplayMode: 'minimal',
         }}
       />
@@ -88,6 +85,17 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: insets.bottom + 40 }}
       >
+        <Text
+          style={{
+            fontSize: 34,
+            fontWeight: '700',
+            color: Colors.textPrimary,
+            letterSpacing: -0.5,
+            marginBottom: 24,
+          }}
+        >
+          Welcome back
+        </Text>
         <View style={{ gap: 16, marginTop: 8 }}>
           {/* Email / username field */}
           <Animated.View

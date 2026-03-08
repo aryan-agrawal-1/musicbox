@@ -13,6 +13,7 @@ import { StarRating } from '@/components/star-rating';
 import { ReviewCard } from '@/components/review-card';
 import { SectionHeader } from '@/components/section-header';
 import { SkeletonCard } from '@/components/skeleton-card';
+import { HeroBackButton } from '@/components/hero-back-button';
 import { formatCount, formatDuration } from '@/lib/format';
 
 function Separator() {
@@ -57,6 +58,7 @@ export default function TrackScreen() {
             </View>
           </View>
         </ScrollView>
+        <HeroBackButton />
       </View>
     );
   }
@@ -161,6 +163,8 @@ export default function TrackScreen() {
               </View>
             </Animated.View>
           </View>
+
+          <HeroBackButton />
         </View>
 
         {/* ── Track Info ── */}
