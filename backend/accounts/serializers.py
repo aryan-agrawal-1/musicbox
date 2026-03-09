@@ -11,6 +11,8 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model"""
 
+    is_apple_music_connected = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = User
         fields = [
@@ -18,11 +20,14 @@ class UserSerializer(serializers.ModelSerializer):
             'bio', 'avatar_url', 'location',
             'total_albums_rated', 'total_songs_rated', 'total_reviews',
             'spotify_user_id', 'spotify_connected_at',
+            'is_apple_music_connected', 'apple_music_connected_at',
             'created_at'
         ]
         read_only_fields = [
             'id', 'total_albums_rated', 'total_songs_rated', 'total_reviews',
-            'spotify_user_id', 'spotify_connected_at', 'created_at'
+            'spotify_user_id', 'spotify_connected_at',
+            'is_apple_music_connected', 'apple_music_connected_at',
+            'created_at'
         ]
 
 
@@ -51,6 +56,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """Detailed serializer for user profiles"""
 
     is_spotify_connected = serializers.BooleanField(read_only=True)
+    is_apple_music_connected = serializers.BooleanField(read_only=True)
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
 
@@ -61,13 +67,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'bio', 'avatar_url', 'location',
             'total_albums_rated', 'total_songs_rated', 'total_reviews',
             'is_spotify_connected', 'spotify_user_id', 'spotify_connected_at',
+            'is_apple_music_connected', 'apple_music_connected_at',
             'followers_count', 'following_count',
             'created_at', 'username_last_changed'
         ]
         read_only_fields = [
             'id', 'total_albums_rated', 'total_songs_rated', 'total_reviews',
             'spotify_user_id', 'spotify_connected_at', 'created_at',
-            'is_spotify_connected', 'followers_count', 'following_count',
+            'is_spotify_connected', 'is_apple_music_connected',
+            'apple_music_connected_at',
+            'followers_count', 'following_count',
             'username_last_changed'
         ]
 

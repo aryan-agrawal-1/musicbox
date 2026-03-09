@@ -1,4 +1,4 @@
-type RatingCallback = (spotifyId: string, songId: number, rating: number) => void;
+type RatingCallback = (songId: number, rating: number) => void;
 
 let _cb: RatingCallback | null = null;
 
@@ -9,7 +9,7 @@ export const onboardingStore = {
   clearRatingCallback() {
     _cb = null;
   },
-  fireRating(spotifyId: string, songId: number, rating: number) {
-    _cb?.(spotifyId, songId, rating);
+  fireRating(songId: number, rating: number) {
+    _cb?.(songId, rating);
   },
 };

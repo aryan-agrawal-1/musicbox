@@ -10,6 +10,7 @@ class ArtistSerializer(serializers.ModelSerializer):
 
 class SongSerializer(serializers.ModelSerializer):
     artists = ArtistSerializer(many=True, read_only=True)
+    album_id = serializers.IntegerField(source='album.id', read_only=True)
     album_name = serializers.CharField(source='album.name', read_only=True)
     album_image = serializers.URLField(source='album.image_url', read_only=True)
     album_spotify_id = serializers.CharField(source='album.spotify_id', read_only=True)
@@ -18,8 +19,8 @@ class SongSerializer(serializers.ModelSerializer):
     class Meta:
         model = Song
         fields = [
-            'id', 'spotify_id', 'name', 'artists',
-            'album_name', 'album_image', 'album_spotify_id',
+            'id', 'spotify_id', 'apple_music_id', 'isrc', 'name', 'artists',
+            'album_id', 'album_name', 'album_image', 'album_spotify_id',
             'track_number', 'disc_number', 'duration_ms',
             'explicit', 'preview_url', 'avg_rating', 'total_ratings',
         ]

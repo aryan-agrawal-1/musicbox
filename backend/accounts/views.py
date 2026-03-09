@@ -458,3 +458,59 @@ class AppleRegisterView(generics.GenericAPIView):
             "access": str(refresh.access_token),
             "refresh": str(refresh),
         }, status=status.HTTP_201_CREATED)
+
+
+# ---------------------------------------------------------------------------
+# Apple Music endpoints
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def apple_music_developer_token(request):
+    """Return a short-lived Apple Music developer token (JWT).
+    The private key stays server-side; the token is safe to send to clients.
+    """
+    from music.services.apple_music_service import AppleMusicService
+    try:
+        token = AppleMusicService().generate_developer_token()
+    except ValueError as exc:
+        return Response({'error': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    return Response({'token': token})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def apple_music_connect(request):
+    """Store the user's Apple Music user token received from the iOS MusicKit SDK."""
+    user_token = request.data.get('user_token', '').strip()
+    if not user_token:
+        return Response({'error': 'user_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = request.user
+    user.apple_music_user_token = user_token
+    user.apple_music_connected_at = timezone.now()
+    user.save(update_fields=['apple_music_user_token', 'apple_music_connected_at'])
+
+    return Response(UserProfileSerializer(user).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def apple_music_disconnect(request):
+    """Remove the stored Apple Music user token."""
+    user = request.user
+    user.apple_music_user_token = None
+    user.apple_music_connected_at = None
+    user.save(update_fields=['apple_music_user_token', 'apple_music_connected_at'])
+    return Response({'message': 'Apple Music disconnected.'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def apple_music_status(request):
+    """Check Apple Music connection status."""
+    user = request.user
+    return Response({
+        'is_connected': user.is_apple_music_connected,
+        'connected_at': user.apple_music_connected_at,
+    })

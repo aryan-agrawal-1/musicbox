@@ -1,0 +1,10 @@
+{
+  "name": "apple-music-kit",
+  "version": "1.0.0",
+  "description": "Minimal Expo module for Apple Music / MusicKit authorization",
+  "author": "Aryan Agrawal",
+  "homepage": "https://github.com/aryanagrawal5/musicbox",
+  "license": "MIT",
+  "main": "./index.ts",
+  "types": "./index.ts"
+}

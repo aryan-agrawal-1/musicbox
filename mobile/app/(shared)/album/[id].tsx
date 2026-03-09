@@ -126,11 +126,11 @@ export default function AlbumScreen() {
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
               {album.artists.map((artist, i) => (
-                <View key={artist.spotify_id} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View key={artist.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
                   {i > 0 && (
                     <Text style={{ fontSize: 15, color: Colors.textSecondary }}>, </Text>
                   )}
-                  <Link href={`/artist/${artist.spotify_id}`} asChild>
+                  <Link href={`/artist/${artist.id}`} asChild>
                     <Pressable hitSlop={4}>
                       <Text style={{ fontSize: 15, fontWeight: '500', color: Colors.textSecondary }}>
                         {artist.name}
@@ -175,12 +175,12 @@ export default function AlbumScreen() {
             <SectionHeader title="Tracks" />
             <View>
               {(album.songs ?? []).map((song, i) => (
-                <View key={song.spotify_id}>
+                <View key={song.id}>
                   <TrackRow
                     track={song}
                     showTrackNumber
                     showAlbumArt={false}
-                    onPress={() => router.push(`/track/${song.spotify_id}`)}
+                    onPress={() => router.push(`/track/${song.id}`)}
                   />
                   {i < (album.songs?.length ?? 0) - 1 && (
                     <View

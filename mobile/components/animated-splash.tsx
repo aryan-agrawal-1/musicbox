@@ -1,0 +1,168 @@
+import { useEffect } from 'react';
+import { Dimensions, StyleSheet, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+// Hoisted outside component — never re-allocated on re-render
+// Path from logo.svg which now has the same 768×768 viewBox as icon-foreground.png
+const LOGO_PATH =
+  'M305.07,371.52c.02,21.42-2.01,10.18-2.06,18.88l-.06,13.03-1.56,4.16.05,12c.01,2.59-1.36,4.95-1.78,7.61-.67,4.27-.36,11.07-.6,14.93-3.05,3.15-1.56,11.68-2.4,19.65-.17,1.62-1.69,4-1.7,5.69l-.1,11.09c0,.9-1.31,3.12-1.4,4.13-.36,4.12.32,10.28-.59,14.51s-1.98,7.81-1.69,12.34c.24,3.72-1.15,6.92-1.34,10.53l-.8,14.64c.12-2.12-3.74,22.3-3.78,22.5-.34,1.73-1.74,4.55-2.37,6.21l-1.68,4.41c-3.77,9.89-9.65,18.43-16.84,26.45-3.86,4.3-11.42,11.51-16.43,14.56l-6.99,4.25c-9.13,5.56-19.15,9.29-29.55,11.36-2.34.47-4.98-.81-5.79,2.41l-32.18.02c-.61-3.27-3.36-1.91-5.51-2.52-14.94-4.24-29.19-10.79-39.26-23.1l-5.43-6.64c-2.58-3.15-4.58-7.51-6.39-11.25l-2.14-4.43c-2.49-8.58-2.53-18.94-1.47-27.98.22-1.89.68-5.89,1.44-7.67,2.86-6.74,6.69-14.39,11-20.62,10.49-15.15,25.54-25.99,42.51-32.78l4.77-1.91c.54-.22,15.05-3.83,13.93-3.77,11.16-.69,21.93-.42,33.02-.13,6.44,2.83,12.8,3.39,20.55,7.77l5.87,3.31c.53.3,2.22.15,2.75-.13s.61-1.82.63-2.76c.07-2.61.95-5.01,1.33-7.49.8-5.13-.85-11.32.67-16.05l1.62-5.06c1.29-4.02.07-9.44.74-13.82.42-2.75,1.55-5.52,1.32-8.47-.33-4.19,1.36-7.41,1.64-11.38l.97-13.47c.26-3.59,1.72-6.59,1.49-10.41-.21-3.51.71-6.43,1.32-9.77.87-4.79.42-10.3.62-15.14l1.75-3.64c.19-4.45.12-9.27.64-13.66.22-1.87,1.58-4.43,1.45-6.39-.41-6.37-.22-12.26,1.22-18.42,1.13-4.82-.55-10.38.92-15.22l1.64-5.44.74-15.51c.11-2.28,1.56-5.06,1.34-7.67-.35-4.12,1.29-7.44,1.54-11.33l.95-14.53c.1-1.55,1.55-3.91,1.56-5.49.05-4.66.08-8.93.51-13.22.12-1.16,1.22-3.64,1.24-4.75.1-4.74.02-8.79.44-13.27.16-1.69,1.66-4.21,1.7-6.37l.29-14.26,1.4-3.76c1.16-3.13-.44-8.75.5-11.75l2.28-7.27c.74-2.35,6.4-10.02,10.26-11.5,3.89-1.18,9.95-1.45,13.94.17,8.64,3.51,26.3,29.99,32.33,38.6l16.07,22.92,15.52,22.02,25.36,35.24,20.11,27.78,14.55,20.65,8.86,12.17,8.38,12.03,38.77,53.96c3.09,4.31,6.1,10.06,8.08,14.3.31.67,2.3,1.23,2.68.75,3.76-4.71.65-12.22,2.26-20.56.77-3.98,1.88-7.41,1.63-11.66s1.19-8.3,1.47-12.59l1.1-17.27c.23-3.61,1.48-6.82,1.32-10.62-.12-3.1,1.24-5.52,1.42-8.43l1.11-18.27c.22-3.61,1.5-6.92,1.27-10.72s.74-7.07,1.46-10.74c1.11-5.61.59-11.72.74-17.59l1.64-2.78.63-16.43,1.53-4.84c-1.58,5.02,1.9-33.55,2.08-30.81-.27-4.22.56-7.88,1.27-11.96.77-4.35.42-9.05.38-13.55-.03-3.71,1.61-6.85,1.83-10.53l.74-12.31c.12-1.92,1.5-4.3,1.58-6.29l.54-13.87c.04-1.13,1.2-3.6,1.34-4.86.55-5.11-.97-10.82.63-15.01,6.1-16.02,16.67-13.47,18.51-14.59,2.83-1.73,5.78-2,8.3.38,5.89-.22,14.9,4.53,18.87,8.5,3.95,3.96,7.78,7.66,11.47,11.81,6.43,7.22,12.26,14.47,19.78,20.68,8.56,7.07,17.34,13.3,24.91,21.37,11.87,12.65,22.91,27,25.18,43.96l1.54,11.5c.57,4.29.6,9.19-.29,13.42-1.97,9.39.12,9.84-3.04,17.2l-2.6,6.07c-7.9,18.42-20.62,29.8-37.16,40.73-2.55,1.69-8.46,4.7-11.61,4.35-.66-.07-.58-2.38-.06-2.94,4.89-5.27,11.08-11.23,14.88-17.59,2.64-4.42,10.51-19.89,10.69-23.37l.38-7.1c1.55-4.14,2.49-7.7.85-12.05-.82-2.18-.63-6.3-1.55-8.18l-6.4-13.18c-5.04-10.36-22.94-25.38-32.18-33.07l-15.15-12.6c-2.67-2.22-4.09-5.38-7.69-7.25l-.71,14.43-1.78,5.62-.16,12.32-1.55,4.24-.04,13.15-1.71,4.85-.56,15.43-1.56,5.66.02,13.42c0,1.34-1.79,3.97-2.09,5.17l-.05,16.92-2.02,4.78-.13,17.68-1.47,4.42-.51,18.25-1.77,5.24-.09,16.15c-3,3-1.73,14.62-2.38,22.61-.14,1.75-1.39,4.41-1.39,6.27l.02,17.62c-.35.99-1.71,3.29-1.75,4.39l-.74,17.5c-.11,2.69-1.7,5.51-1.41,8.45.58,5.91-.55,10.98-1.66,16.59-.95,4.79-.13,10.42-.51,15.27l-1.78,4.32-.36,19.07-1.5,4.66-.12,16.67c-3.81,4.2-1.03,10.82-2.48,15.73l-2.08,7.09c-.46,1.58-.9,4.38-1.54,5.81-4.79,10.78-10.59,21.14-18.61,29.61-14.6,15.41-28.41,23.37-48.68,29.35-9.41,2.78-10.28-1.59-13.29,3.42l-24.57-.02c-3.19-4.56-1.61-.79-10.26-3.49l-5.7-1.78c-6.26-1.96-11.64-4.77-17.25-8.27-6.51-4.06-11.54-9.57-16.92-15.16-4.6-4.77-7.35-10.8-10.25-16.74-3.3-6.76,1.23-1.69-2.96-7.53-1.23-22.39-1.12-31.64,11.14-50.95,8.95-14.09,20.8-23.84,35.88-30.62,4.89-2.2,9.79-4.27,14.97-5.85,10.1-3.07,12.67-2.92,24.1-2.77l21.57.27,6.15,2.66c1.18.51,4.26,1.53,5.23.34,1.52-1.85-1.23-4.31-2.38-5.71-3.9-4.74-7.58-9.34-11.06-14.31l-9.56-13.69-3.18-4.34-15.67-21.77-15.47-21.31-11.59-16.07-8.94-12.02-21.51-30.17-5.09-7.03c-3.48-4.81-6.83-9.52-10.3-14.37l-9.01-12.59-12.95-17.97-15.95-22.35-8.46-12.51c-2.61.46-2.42,3.05-2.45,5.23l-.34,25.88-1.87,3.43-.3,14.01-1.8,3.24-.49,15.43c-.04,1.27-1.56,3.96-1.54,5.33.08,4.62,1.14,9.22-.14,13.3l-1.71,5.43c1.62-5.15-1.93,25.62-1.94,19.49Z';
+
+// Both assets now share the same 768×768 square viewBox — no manual padding needed
+const SVG_VIEWBOX = '0 0 768 768';
+
+const DASH_ARRAY = 5000;
+const PURPLE = '#BF5AF2';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+// Square container — matches the square PNG asset
+const LOGO_SIZE = SCREEN_WIDTH * 0.65;
+const SHIMMER_W = LOGO_SIZE * 0.38;
+
+export function AnimatedSplash({ onComplete }: { onComplete: () => void }) {
+  // Phase 1: stroke draw
+  const strokeProgress = useSharedValue(0);
+  // Phase 2: fill fade in
+  const fillOpacity = useSharedValue(0);
+  // Phase 3: shimmer sweep
+  const shimmerX = useSharedValue(0);
+  // Phase 4: PNG reveal
+  const colorOpacity = useSharedValue(0);
+  // Phase 5: SVG layer out (as PNG takes over)
+  const svgOpacity = useSharedValue(1);
+  // Phase 6: exit
+  const containerOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    // Phase 1: draw stroke 0–1200ms
+    strokeProgress.value = withTiming(1, {
+      duration: 1200,
+      easing: Easing.inOut(Easing.cubic),
+    });
+
+    // Phase 2: fill in 1000–1600ms
+    fillOpacity.value = withDelay(
+      1000,
+      withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) })
+    );
+
+    // Phase 3: shimmer 1400–1850ms
+    shimmerX.value = withDelay(
+      1400,
+      withTiming(1, { duration: 450, easing: Easing.out(Easing.quad) })
+    );
+
+    // Phase 4: PNG in 1600–2200ms
+    colorOpacity.value = withDelay(
+      1600,
+      withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) })
+    );
+
+    // Phase 5: SVG out 1900–2100ms
+    svgOpacity.value = withDelay(
+      1900,
+      withTiming(0, { duration: 200 })
+    );
+
+    // Phase 6: container exit 2300–2700ms
+    containerOpacity.value = withDelay(
+      2300,
+      withTiming(0, { duration: 400, easing: Easing.in(Easing.quad) }, () => {
+        runOnJS(onComplete)();
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pathProps = useAnimatedProps(() => ({
+    strokeDashoffset: (1 - strokeProgress.value) * DASH_ARRAY,
+    fillOpacity: fillOpacity.value,
+  }));
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: shimmerX.value * (LOGO_SIZE + SHIMMER_W) - SHIMMER_W },
+    ],
+  }));
+
+  const svgLayerStyle = useAnimatedStyle(() => ({
+    opacity: svgOpacity.value,
+  }));
+
+  const colorStyle = useAnimatedStyle(() => ({
+    opacity: colorOpacity.value,
+  }));
+
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: containerOpacity.value,
+  }));
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, styles.container, containerStyle]}>
+      <View style={{ width: LOGO_SIZE, height: LOGO_SIZE }}>
+
+        {/* Layer 1: SVG — stroke draws then fills with purple */}
+        <Animated.View style={[StyleSheet.absoluteFill, svgLayerStyle]}>
+          <Svg viewBox={SVG_VIEWBOX} width={LOGO_SIZE} height={LOGO_SIZE}>
+            <AnimatedPath
+              d={LOGO_PATH}
+              fill={PURPLE}
+              stroke={PURPLE}
+              strokeWidth={8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={DASH_ARRAY}
+              animatedProps={pathProps}
+            />
+          </Svg>
+        </Animated.View>
+
+        {/* Layer 2: Shimmer — bright gradient sliding left→right, clipped to logo bounds */}
+        <View style={[StyleSheet.absoluteFill, styles.overflow]}>
+          <Animated.View style={shimmerStyle}>
+            <LinearGradient
+              colors={['transparent', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0.12)', 'transparent']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={{ width: SHIMMER_W, height: LOGO_SIZE }}
+            />
+          </Animated.View>
+        </View>
+
+        {/* Layer 3: Full-color gradient PNG */}
+        <Animated.View style={[StyleSheet.absoluteFill, colorStyle]}>
+          <Image
+            source={require('../assets/icon-foreground.png')}
+            style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+            contentFit="contain"
+          />
+        </Animated.View>
+
+      </View>
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#0B0B0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  overflow: {
+    overflow: 'hidden',
+  },
+});

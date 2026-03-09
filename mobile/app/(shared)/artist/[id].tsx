@@ -312,7 +312,7 @@ export default function ArtistScreen() {
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
               >
                 {topRated.map((album: Album) => (
-                  <View key={album.spotify_id} style={{ width: 180 }}>
+                  <View key={album.id} style={{ width: 180 }}>
                     <AlbumCard album={album} variant="large" showRating />
                   </View>
                 ))}
@@ -328,7 +328,7 @@ export default function ArtistScreen() {
             {discographyRows.map((row, rowIndex) => (
               <View key={rowIndex} style={{ flexDirection: 'row', gap: 4 }}>
                 {row.map(album => (
-                  <View key={album.spotify_id} style={{ flex: 1 }}>
+                  <View key={album.id} style={{ flex: 1 }}>
                     <AlbumCard album={album} variant="compact" showLabel />
                   </View>
                 ))}

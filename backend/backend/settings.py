@@ -182,6 +182,12 @@ CORS_ALLOW_CREDENTIALS = True
 # Apple Sign In
 APPLE_APP_BUNDLE_ID = config('APPLE_APP_BUNDLE_ID', default='com.aryan.muze')
 
+# Apple Music API Configuration
+APPLE_MUSIC_KEY_ID = config('APPLE_MUSIC_KEY_ID', default='')
+APPLE_MUSIC_TEAM_ID = config('APPLE_MUSIC_TEAM_ID', default='')
+# .p8 private key contents (newlines escaped as \n for env var storage)
+APPLE_MUSIC_PRIVATE_KEY = config('APPLE_MUSIC_PRIVATE_KEY', default='')
+
 # Spotify API Configuration
 SPOTIFY_CLIENT_ID = config('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = config('SPOTIFY_CLIENT_SECRET')

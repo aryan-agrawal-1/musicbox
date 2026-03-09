@@ -1,58 +1,11 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
-import type { User, ListeningHistory, PaginatedResponse } from '@/types/api';
-
-// Raw Spotify API shapes (what the backend search endpoint actually returns) ───
-
-interface SpotifyImage {
-  url: string;
-  width?: number;
-  height?: number;
-}
-
-interface SpotifyArtistSimple {
-  id: string;
-  name: string;
-}
-
-export interface SpotifyAlbumResult {
-  id: string;
-  name: string;
-  album_type: string;
-  release_date: string;
-  total_tracks: number;
-  images: SpotifyImage[];
-  artists: SpotifyArtistSimple[];
-}
-
-export interface SpotifyTrackResult {
-  id: string;
-  name: string;
-  duration_ms: number;
-  explicit: boolean;
-  preview_url: string | null;
-  track_number: number;
-  disc_number: number;
-  artists: SpotifyArtistSimple[];
-  album: {
-    id: string;
-    name: string;
-    images: SpotifyImage[];
-    artists: SpotifyArtistSimple[];
-  };
-}
-
-export interface SpotifyArtistResult {
-  id: string;
-  name: string;
-  genres: string[];
-  images: SpotifyImage[];
-}
+import type { Album, Song, Artist, User, ListeningHistory, PaginatedResponse } from '@/types/api';
 
 export interface SearchResults {
-  albums?: SpotifyAlbumResult[];
-  tracks?: SpotifyTrackResult[];
-  artists?: SpotifyArtistResult[];
+  albums?: Album[];
+  tracks?: Song[];
+  artists?: Artist[];
 }
 
 export function useSearch(query: string) {

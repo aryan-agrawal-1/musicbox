@@ -183,11 +183,11 @@ export default function TrackScreen() {
           {/* Artists */}
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
             {track.artists.map((artist, i) => (
-              <View key={artist.spotify_id} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View key={artist.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {i > 0 && (
                   <Text style={{ fontSize: 15, color: Colors.textSecondary }}>, </Text>
                 )}
-                <Link href={`/artist/${artist.spotify_id}`} asChild>
+                <Link href={`/artist/${artist.id}`} asChild>
                   <Pressable hitSlop={4}>
                     <Text style={{ fontSize: 15, fontWeight: '500', color: Colors.textSecondary }}>
                       {artist.name}
@@ -200,7 +200,7 @@ export default function TrackScreen() {
 
           {/* Album link + metadata row */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-            <Link href={`/album/${track.album_spotify_id}`} asChild>
+            <Link href={`/album/${track.album_id}`} asChild>
               <Pressable hitSlop={4}>
                 <Text style={{ fontSize: 13, color: Colors.textTertiary }} numberOfLines={1}>
                   {track.album_name}

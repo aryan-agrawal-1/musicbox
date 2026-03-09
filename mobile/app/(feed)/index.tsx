@@ -199,7 +199,7 @@ export default function FeedScreen() {
               contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
             >
               {(popularData?.results ?? []).map(album => (
-                <View key={album.spotify_id} style={{ width: 160 }}>
+                <View key={album.id} style={{ width: 160 }}>
                   <AlbumCard album={album} variant="large" showRating />
                 </View>
               ))}
@@ -221,7 +221,7 @@ export default function FeedScreen() {
               contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
             >
               {(newData?.results ?? []).map(album => (
-                <View key={album.spotify_id} style={{ width: 160 }}>
+                <View key={album.id} style={{ width: 160 }}>
                   <AlbumCard album={album} variant="large" showRating />
                 </View>
               ))}

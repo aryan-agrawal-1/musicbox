@@ -16,7 +16,7 @@ import Constants from 'expo-constants';
 
 import { Colors } from '@/constants/colors';
 import { AuthContext } from '@/contexts/auth-context';
-import { connectSpotify } from '@/lib/spotify';
+import { connectAppleMusic, disconnectAppleMusic } from '@/lib/apple-music';
 import { AvatarImage } from '@/components/avatar-image';
 import { apiFetch } from '@/lib/api';
 import { useSyncListeningHistory } from '@/hooks/use-diary';
@@ -154,11 +154,10 @@ export default function SettingsScreen() {
 
   const syncMutation = useSyncListeningHistory();
   const { avatarLoading, pickAndUploadAvatar, removeAvatar } = useAvatarUpload(auth.refreshUser);
-  const [spotifyConnecting, setSpotifyConnecting] = useState(false);
+  const [appleMusicConnecting, setAppleMusicConnecting] = useState(false);
 
   const disconnectMutation = useMutation({
-    mutationFn: () =>
-      apiFetch<void>('/api/v1/auth/spotify/disconnect/', { method: 'POST' }),
+    mutationFn: () => disconnectAppleMusic(),
     onSuccess: () => auth.refreshUser(),
   });
 
@@ -170,8 +169,8 @@ export default function SettingsScreen() {
 
   const name = displayName(user);
   const version = Constants.expoConfig?.version ?? '—';
-  const connectedSince = user.spotify_connected_at
-    ? new Date(user.spotify_connected_at).toLocaleDateString('en-US', {
+  const connectedSince = user.apple_music_connected_at
+    ? new Date(user.apple_music_connected_at).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
@@ -212,10 +211,10 @@ export default function SettingsScreen() {
 
   // ── Action handlers ──────────────────────────────────────────────────────
 
-  async function handleConnectSpotify() {
-    setSpotifyConnecting(true);
+  async function handleConnectAppleMusic() {
+    setAppleMusicConnecting(true);
     try {
-      const connected = await connectSpotify();
+      const connected = await connectAppleMusic();
       if (connected) {
         await auth.refreshUser();
         if (process.env.EXPO_OS === 'ios') {
@@ -225,10 +224,10 @@ export default function SettingsScreen() {
     } catch (err) {
       Alert.alert(
         'Connection Failed',
-        err instanceof Error ? err.message : 'Could not connect Spotify. Please try again.',
+        err instanceof Error ? err.message : 'Could not connect Apple Music. Please try again.',
       );
     } finally {
-      setSpotifyConnecting(false);
+      setAppleMusicConnecting(false);
     }
   }
 
@@ -242,9 +241,9 @@ export default function SettingsScreen() {
     });
   }
 
-  function handleDisconnectSpotify() {
+  function handleDisconnectAppleMusic() {
     Alert.alert(
-      'Disconnect Spotify',
+      'Disconnect Apple Music',
       'Your listening history will stop syncing. Previously synced history will be kept.',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -439,28 +438,26 @@ export default function SettingsScreen() {
           />
         </Section>
 
-        {/* ── Spotify ── */}
+        {/* ── Apple Music ── */}
         <View>
-          <SectionHeader title="Spotify" />
+          <SectionHeader title="Apple Music" />
           <Section>
             <SettingsRow
               label="Status"
               rightContent={
-                <View
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}
-                >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                   <View
                     style={{
                       width: 8,
                       height: 8,
                       borderRadius: 4,
-                      backgroundColor: user.is_spotify_connected
+                      backgroundColor: user.is_apple_music_connected
                         ? Colors.positive
                         : Colors.textTertiary,
                     }}
                   />
                   <Text style={{ fontSize: 15, color: Colors.textSecondary }}>
-                    {user.is_spotify_connected
+                    {user.is_apple_music_connected
                       ? connectedSince
                         ? `Since ${connectedSince}`
                         : 'Connected'
@@ -472,7 +469,7 @@ export default function SettingsScreen() {
 
             <RowSeparator />
 
-            {user.is_spotify_connected ? (
+            {user.is_apple_music_connected ? (
               <SettingsRow
                 label="Sync Listening History"
                 loading={syncMutation.isPending}
@@ -481,23 +478,23 @@ export default function SettingsScreen() {
               />
             ) : (
               <SettingsRow
-                label="Connect Spotify Account"
-                loading={spotifyConnecting}
-                onPress={spotifyConnecting ? undefined : handleConnectSpotify}
+                label="Connect Apple Music"
+                loading={appleMusicConnecting}
+                onPress={appleMusicConnecting ? undefined : handleConnectAppleMusic}
               />
             )}
 
-            {user.is_spotify_connected && (
+            {user.is_apple_music_connected && (
               <>
                 <RowSeparator />
                 <SettingsRow
-                  label="Disconnect Spotify"
+                  label="Disconnect Apple Music"
                   destructive
                   loading={disconnectMutation.isPending}
                   onPress={
                     disconnectMutation.isPending
                       ? undefined
-                      : handleDisconnectSpotify
+                      : handleDisconnectAppleMusic
                   }
                 />
               </>

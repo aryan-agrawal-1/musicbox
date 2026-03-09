@@ -5,10 +5,10 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/colors';
 import { SkeletonCard } from '@/components/skeleton-card';
-import { SpotifyConnectPanel } from '@/components/spotify-connect-panel';
+import { AppleMusicConnectPanel } from '@/components/apple-music-connect-panel';
 import { useDiary, useSyncListeningHistory } from '@/hooks/use-diary';
+import { useAppleMusicConnect } from '@/hooks/use-apple-music-connect';
 import { formatDiaryDate } from '@/lib/format';
-import { connectSpotify } from '@/lib/spotify';
 import { AuthContext } from '@/contexts/auth-context';
 import type { ListeningHistory } from '@/types/api';
 
@@ -165,18 +165,16 @@ function DiarySkeleton() {
 
 // Empty state
 
-type ConnectPhase = 'idle' | 'auth' | 'syncing';
-
 interface DiaryEmptyProps {
-  isSpotifyConnected: boolean;
-  connectPhase: ConnectPhase;
+  isAppleMusicConnected: boolean;
+  isConnecting: boolean;
+  loadingLabel: string;
+  error?: string | null;
   onConnect: () => void;
 }
 
-function DiaryEmpty({ isSpotifyConnected, connectPhase, onConnect }: DiaryEmptyProps) {
-  const isConnecting = connectPhase !== 'idle';
-
-  if (isSpotifyConnected) {
+function DiaryEmpty({ isAppleMusicConnected, isConnecting, loadingLabel, error, onConnect }: DiaryEmptyProps) {
+  if (isAppleMusicConnected) {
     return (
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -191,7 +189,7 @@ function DiaryEmpty({ isSpotifyConnected, connectPhase, onConnect }: DiaryEmptyP
           No listening history yet
         </Text>
         <Text style={{ fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
-          Tap the sync button above to import your recent tracks from Spotify.
+          Tap the sync button above to import your recent tracks from Apple Music.
         </Text>
       </ScrollView>
     );
@@ -202,11 +200,12 @@ function DiaryEmpty({ isSpotifyConnected, connectPhase, onConnect }: DiaryEmptyP
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ paddingTop: 48, paddingBottom: 48 }}
     >
-      <SpotifyConnectPanel
-        title="Connect Spotify"
-        description="Link your Spotify account to start tracking your listening history."
+      <AppleMusicConnectPanel
+        title="Connect Apple Music"
+        description="Link your Apple Music account to start tracking your listening history."
         isConnecting={isConnecting}
-        loadingLabel={connectPhase === 'auth' ? 'Opening Spotify…' : 'Syncing your history…'}
+        loadingLabel={loadingLabel}
+        error={error}
         onConnect={onConnect}
       />
     </ScrollView>
@@ -244,7 +243,6 @@ type DiarySection = {
 
 export default function DiaryScreen() {
   const [refreshing, setRefreshing] = useState(false);
-  const [connectPhase, setConnectPhase] = useState<ConnectPhase>('idle');
   const hasSyncedOnMount = useRef(false);
   const auth = use(AuthContext);
 
@@ -257,9 +255,19 @@ export default function DiaryScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useDiary(auth.user?.is_spotify_connected ?? false);
+  } = useDiary(auth.user?.is_apple_music_connected ?? false);
 
   const syncMutation = useSyncListeningHistory();
+
+  const {
+    connect: handleConnectAppleMusic,
+    isConnecting,
+    loadingLabel: connectLoadingLabel,
+    error: connectError,
+  } = useAppleMusicConnect(async () => {
+    await auth.refreshUser();
+    await syncMutation.mutateAsync().catch(() => null);
+  });
 
   // Auto-sync on mount if data is stale (or missing)
   useEffect(() => {
@@ -267,7 +275,7 @@ export default function DiaryScreen() {
     hasSyncedOnMount.current = true;
 
     const isStale = Date.now() - dataUpdatedAt > STALE_THRESHOLD_MS;
-    if (isStale) {
+    if (isStale && auth.user?.is_apple_music_connected) {
       syncMutation.mutate();
     }
   }, []);
@@ -300,28 +308,12 @@ export default function DiaryScreen() {
     syncMutation.mutate();
   }
 
-  async function handleConnectSpotify() {
-    setConnectPhase('auth');
-    try {
-      const connected = await connectSpotify();
-      if (connected) {
-        setConnectPhase('syncing');
-        await auth.refreshUser();
-        await syncMutation.mutateAsync().catch(() => null);
-      }
-    } catch {
-      // silently fail
-    } finally {
-      setConnectPhase('idle');
-    }
-  }
-
   return (
     <>
       <Stack.Screen
         options={{
           title: 'Diary',
-          headerRight: auth.user?.is_spotify_connected
+          headerRight: auth.user?.is_apple_music_connected
             ? () => (
                 <Pressable
                   onPress={handleSync}
@@ -350,9 +342,11 @@ export default function DiaryScreen() {
         <DiaryError onRetry={refetch} />
       ) : allEntries.length === 0 ? (
         <DiaryEmpty
-          isSpotifyConnected={auth.user?.is_spotify_connected ?? false}
-          connectPhase={connectPhase}
-          onConnect={handleConnectSpotify}
+          isAppleMusicConnected={auth.user?.is_apple_music_connected ?? false}
+          isConnecting={isConnecting}
+          loadingLabel={connectLoadingLabel}
+          error={connectError}
+          onConnect={handleConnectAppleMusic}
         />
       ) : (
         <SectionList

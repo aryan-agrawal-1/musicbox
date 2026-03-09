@@ -22,7 +22,7 @@ export function useSyncListeningHistory() {
 
   return useMutation({
     mutationFn: () =>
-      apiFetch<void>('/api/v1/music/listening-history/sync/', { method: 'POST' }),
+      apiFetch<void>('/api/v1/music/apple-music/sync/', { method: 'POST' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['diary'] });
       queryClient.invalidateQueries({ queryKey: ['listening-history'] });

@@ -39,7 +39,7 @@ function artistNames(album: Album): string {
 
 export function AlbumCard({ album, variant = 'large', showRating = false, showLabel = false }: AlbumCardProps) {
   const router = useRouter();
-  const href = `/album/${album.spotify_id}` as `/${string}`;
+  const href = `/album/${album.id}` as `/${string}`;
 
   if (variant === 'inline') {
     return (

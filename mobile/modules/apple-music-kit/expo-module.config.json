@@ -1,0 +1,8 @@
+{
+  "platforms": ["apple"],
+  "apple": {
+    "podspecPath": "apple-music-kit.podspec",
+    "swiftModuleName": "apple_music_kit",
+    "modules": ["AppleMusicKitModule"]
+  }
+}

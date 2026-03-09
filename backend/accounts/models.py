@@ -23,6 +23,10 @@ class User(AbstractUser):
     spotify_token_expires_at = models.DateTimeField(null=True, blank=True)
     spotify_connected_at = models.DateTimeField(null=True, blank=True)
 
+    # Apple Music integration
+    apple_music_user_token = models.CharField(max_length=2000, null=True, blank=True)
+    apple_music_connected_at = models.DateTimeField(null=True, blank=True)
+
     # Denormalized stats for performance
     total_albums_rated = models.IntegerField(default=0)
     total_songs_rated = models.IntegerField(default=0)
@@ -47,3 +51,8 @@ class User(AbstractUser):
     def is_spotify_connected(self):
         """Check if user has connected Spotify account"""
         return bool(self.spotify_access_token)
+
+    @property
+    def is_apple_music_connected(self):
+        """Check if user has connected Apple Music"""
+        return bool(self.apple_music_user_token)

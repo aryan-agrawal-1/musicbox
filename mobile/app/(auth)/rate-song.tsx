@@ -14,7 +14,6 @@ export default function RateSongSheet() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
-    spotifyId: string;
     songId: string;
     name: string;
     artists: string;
@@ -22,7 +21,6 @@ export default function RateSongSheet() {
     albumImage: string;
   }>();
 
-  const spotifyId = params.spotifyId ?? '';
   const songId = parseInt(params.songId ?? '0', 10);
   const songName = params.name ?? '';
   const albumName = params.albumName ?? '';
@@ -48,7 +46,7 @@ export default function RateSongSheet() {
     setIsSaving(true);
 
     // Notify parent immediately so the card updates without waiting for network
-    onboardingStore.fireRating(spotifyId, songId, rating);
+    onboardingStore.fireRating(songId, rating);
     router.back();
 
     // Fire-and-forget API calls

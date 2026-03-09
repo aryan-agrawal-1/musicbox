@@ -2,34 +2,34 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch, ApiError } from '@/lib/api';
 import type { Song, SongReview, SongRating, PaginatedResponse } from '@/types/api';
 
-export function useTrack(spotifyId: string) {
+export function useTrack(id: number | string) {
   return useQuery({
-    queryKey: ['track', spotifyId],
-    queryFn: () => apiFetch<Song>(`/api/v1/music/songs/${spotifyId}/`),
+    queryKey: ['track', id],
+    queryFn: () => apiFetch<Song>(`/api/v1/music/songs/${id}/`),
     staleTime: 10 * 60 * 1000,
-    enabled: !!spotifyId,
+    enabled: !!id,
   });
 }
 
-export function useSongReviews(spotifyId: string) {
+export function useSongReviews(id: number | string) {
   return useQuery({
-    queryKey: ['track', spotifyId, 'reviews'],
+    queryKey: ['track', id, 'reviews'],
     queryFn: () =>
       apiFetch<PaginatedResponse<SongReview>>(
-        `/api/v1/reviews/songs/reviews/?song=${spotifyId}&limit=3`
+        `/api/v1/reviews/songs/reviews/?song=${id}&limit=3`
       ),
     staleTime: 5 * 60 * 1000,
-    enabled: !!spotifyId,
+    enabled: !!id,
   });
 }
 
-export function useUserSongRating(spotifyId: string) {
+export function useUserSongRating(id: number | string) {
   return useQuery({
-    queryKey: ['track', spotifyId, 'my-rating'],
+    queryKey: ['track', id, 'my-rating'],
     queryFn: async () => {
       try {
         const data = await apiFetch<PaginatedResponse<SongRating>>(
-          `/api/v1/reviews/songs/ratings/?song=${spotifyId}&user=me`
+          `/api/v1/reviews/songs/ratings/?song=${id}&user=me`
         );
         return data.results[0] ?? null;
       } catch (e) {
@@ -38,6 +38,6 @@ export function useUserSongRating(spotifyId: string) {
       }
     },
     staleTime: 0,
-    enabled: !!spotifyId,
+    enabled: !!id,
   });
 }

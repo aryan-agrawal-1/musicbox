@@ -14,60 +14,7 @@ import { AvatarImage } from '@/components/avatar-image';
 import { useSearch, useListeningHistory, useUserSearch } from '@/hooks/use-search';
 import { usePopularAlbums, usePopularArtists, usePopularUsers } from '@/hooks/use-feed';
 import { chunk } from '@/lib/format';
-import type {
-  SpotifyAlbumResult,
-  SpotifyTrackResult,
-  SpotifyArtistResult,
-} from '@/hooks/use-search';
 import type { Album, Artist, Song, User } from '@/types/api';
-
-// Normalisers — map raw Spotify shapes to our component-compatible types
-
-function toAlbum(item: SpotifyAlbumResult): Album {
-  return {
-    id: 0,
-    spotify_id: item.id,
-    name: item.name,
-    album_type: item.album_type,
-    release_date: item.release_date,
-    total_tracks: item.total_tracks,
-    image_url: item.images?.[0]?.url ?? null,
-    artists: item.artists.map(a => ({
-      spotify_id: a.id,
-      name: a.name,
-      image_url: null,
-      genres: [],
-    })),
-    genres: [],
-    avg_rating: null,
-    total_ratings: 0,
-    popularity_score: 0,
-  };
-}
-
-function toSong(item: SpotifyTrackResult): Song {
-  return {
-    id: 0, // Spotify search results have no DB id
-    spotify_id: item.id,
-    name: item.name,
-    duration_ms: item.duration_ms,
-    explicit: item.explicit,
-    preview_url: item.preview_url,
-    track_number: item.track_number,
-    disc_number: item.disc_number ?? 1,
-    album_name: item.album.name,
-    album_image: item.album.images?.[0]?.url ?? null,
-    album_spotify_id: item.album.id,
-    artists: item.artists.map(a => ({
-      spotify_id: a.id,
-      name: a.name,
-      image_url: null,
-      genres: [],
-    })),
-    avg_rating: null,
-    total_ratings: 0,
-  };
-}
 
 // Sub-components
 
@@ -112,7 +59,7 @@ function ArtistCircle({ artist }: { artist: Artist }) {
   const router = useRouter();
   return (
     <Pressable
-      onPress={() => router.push(`/artist/${artist.spotify_id}` as `/${string}`)}
+      onPress={() => router.push(`/artist/${artist.id}` as `/${string}`)}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: 72, alignItems: 'center', gap: 8 })}
     >
       <Image
@@ -159,9 +106,9 @@ function SectionError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function ArtistRow({ artist }: { artist: SpotifyArtistResult }) {
+function ArtistRow({ artist }: { artist: Artist }) {
   const router = useRouter();
-  const imageUrl = artist.images?.[0]?.url;
+  const imageUrl = artist.image_url ?? undefined;
   const genre = artist.genres?.[0];
   return (
     <Pressable
@@ -179,12 +126,7 @@ function ArtistRow({ artist }: { artist: SpotifyArtistResult }) {
       >
         <Image
           source={imageUrl ? { uri: imageUrl } : undefined}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: Colors.surfaceHigh,
-          }}
+          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.surfaceHigh }}
           contentFit="cover"
           cachePolicy="memory-disk"
         />
@@ -302,21 +244,24 @@ export default function SearchScreen() {
   const { data: popularData, isLoading: popularLoading, error: popularError, refetch: refetchPopular } = usePopularAlbums();
   const { data: popularArtistsData, isLoading: artistsLoading } = usePopularArtists();
   const { data: popularUsersData, isLoading: usersLoading } = usePopularUsers();
-  const { data: historyData } = useListeningHistory(auth.user?.is_spotify_connected ?? false);
+  const { data: historyData } = useListeningHistory(
+    auth.user?.is_spotify_connected ?? auth.user?.is_apple_music_connected ?? false
+  );
 
   // Deduplicate listening history by album — single-pass with Set (O(n))
   const recentAlbums = useMemo<Album[]>(() => {
     const entries = historyData?.results;
     if (!entries || entries.length === 0) return [];
-    const seen = new Set<string>();
+    const seen = new Set<number>();
     const albums: Album[] = [];
     for (const entry of entries) {
-      const id = entry.song.album_spotify_id;
-      if (!seen.has(id)) {
-        seen.add(id);
+      const albumId = entry.song.album_id;
+      if (!seen.has(albumId)) {
+        seen.add(albumId);
         albums.push({
-          id: 0,
-          spotify_id: id,
+          id: albumId,
+          spotify_id: entry.song.album_spotify_id,
+          apple_music_id: null,
           name: entry.song.album_name,
           image_url: entry.song.album_image,
           artists: entry.song.artists,
@@ -334,16 +279,9 @@ export default function SearchScreen() {
     return albums;
   }, [historyData]);
 
-  // Normalize Spotify raw results to component-compatible types
-  const albums = useMemo<Album[]>(
-    () => (searchData?.albums ?? []).map(toAlbum),
-    [searchData?.albums]
-  );
-  const tracks = useMemo<Song[]>(
-    () => (searchData?.tracks ?? []).map(toSong),
-    [searchData?.tracks]
-  );
-  const artists: SpotifyArtistResult[] = searchData?.artists ?? [];
+  const albums: Album[] = searchData?.albums ?? [];
+  const tracks: Song[] = searchData?.tracks ?? [];
+  const artists: Artist[] = searchData?.artists ?? [];
   const users: User[] = userResults ?? [];
 
   const isSearchActive = debouncedQuery.length >= 2;
@@ -405,9 +343,9 @@ export default function SearchScreen() {
               {segment === 0 && albums.length > 0 && (
                 <View style={{ paddingHorizontal: 12, paddingTop: 4, gap: 4 }}>
                   {chunk(albums, 3).map((row, ri) => (
-                    <View key={row[0]?.spotify_id ?? String(ri)} style={{ flexDirection: 'row', gap: 4 }}>
+                    <View key={row[0]?.id ?? String(ri)} style={{ flexDirection: 'row', gap: 4 }}>
                       {row.map(album => (
-                        <View key={album.spotify_id} style={{ flex: 1 }}>
+                        <View key={album.id} style={{ flex: 1 }}>
                           <AlbumCard album={album} variant="compact" showLabel />
                         </View>
                       ))}
@@ -425,13 +363,13 @@ export default function SearchScreen() {
               {segment === 1 && tracks.length > 0 && (
                 <View>
                   {tracks.map((track, i) => (
-                    <View key={track.spotify_id}>
+                    <View key={track.id}>
                       <TrackRow
                         track={track}
                         showTrackNumber={false}
                         showAlbumArt
                         onPress={() =>
-                          router.push(`/track/${track.spotify_id}` as `/${string}`)
+                          router.push(`/track/${track.id}` as `/${string}`)
                         }
                       />
                       {i < tracks.length - 1 && (
@@ -507,7 +445,7 @@ export default function SearchScreen() {
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
               >
                 {recentAlbums.map(album => (
-                  <View key={album.spotify_id} style={{ width: 160 }}>
+                  <View key={album.id} style={{ width: 160 }}>
                     <AlbumCard album={album} variant="large" showRating={false} />
                   </View>
                 ))}
@@ -527,7 +465,7 @@ export default function SearchScreen() {
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 16 }}
               >
                 {(popularArtistsData ?? []).map(artist => (
-                  <ArtistCircle key={artist.spotify_id} artist={artist} />
+                  <ArtistCircle key={artist.id} artist={artist} />
                 ))}
               </ScrollView>
             ) : null}
@@ -547,7 +485,7 @@ export default function SearchScreen() {
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
               >
                 {(popularData?.results ?? []).map(album => (
-                  <View key={album.spotify_id} style={{ width: 160 }}>
+                  <View key={album.id} style={{ width: 160 }}>
                     <AlbumCard album={album} variant="large" showRating />
                   </View>
                 ))}

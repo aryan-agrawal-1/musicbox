@@ -168,7 +168,7 @@ export function filterProfileActivities(
   for (const a of activities) {
     if (a.activity_type === 'album_review' || a.activity_type === 'song_review') {
       const data = (a.activity_data ?? {}) as Record<string, unknown>;
-      const key = `${a.user.id}:${data.album_spotify_id ?? ''}:${data.song ?? ''}`;
+      const key = `${a.user.id}:${data.album ?? data.album_id ?? ''}:${data.song ?? ''}`;
       reviewedKeys.add(key);
     }
   }
@@ -181,7 +181,7 @@ export function filterProfileActivities(
     // Filter out rating activities when a review exists for the same item
     if (a.activity_type === 'album_rating' || a.activity_type === 'song_rating') {
       const data = (a.activity_data ?? {}) as Record<string, unknown>;
-      const key = `${a.user.id}:${data.album_spotify_id ?? ''}:${data.song ?? ''}`;
+      const key = `${a.user.id}:${data.album ?? data.album_id ?? ''}:${data.song ?? ''}`;
       if (reviewedKeys.has(key)) {
         return false;
       }
@@ -233,7 +233,8 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
   const data = (activity.activity_data ?? {}) as Record<string, unknown>;
   const isFollow = activity.activity_type === 'follow';
   const isRatingOrReview = !isFollow;
-  const albumSpotifyId = (data.album_spotify_id ?? '') as string;
+  // Use integer album id for navigation (album FK for album activities, album_id for song activities)
+  const albumNavId = (data.album ?? data.album_id ?? '') as number | string;
 
   // Like state for review activities
   const [isLiked, setIsLiked] = useState(Boolean(data.is_liked));
@@ -245,14 +246,14 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
     if (process.env.EXPO_OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    const prev = { isLiked, likesCount };
-    setIsLiked(!isLiked);
-    setLikesCount(prev => prev + (isLiked ? -1 : 1));
+    const rollback = { isLiked, likesCount };
+    setIsLiked(v => !v);
+    setLikesCount(c => c + (isLiked ? -1 : 1));
     try {
       await toggleLike.mutateAsync({ liked: isLiked });
     } catch {
-      setIsLiked(prev.isLiked);
-      setLikesCount(prev.likesCount);
+      setIsLiked(rollback.isLiked);
+      setLikesCount(rollback.likesCount);
     }
   }
 
@@ -295,16 +296,17 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
   const isReview = activity.activity_type === 'album_review' || activity.activity_type === 'song_review';
   const reviewId = (data.id ?? '') as string | number;
 
-  const songSpotifyId = (data.song_spotify_id ?? '') as string;
+  // song FK (integer id) for song activities
+  const songNavId = (data.song ?? '') as number | string;
 
   function handleCardPress() {
     if (isReview && reviewId) {
       const reviewType = activity.activity_type === 'song_review' ? 'song' : 'album';
       router.push({ pathname: '/review/[id]', params: { id: String(reviewId), type: reviewType } });
-    } else if (activity.activity_type === 'song_rating' && songSpotifyId) {
-      router.push(`/track/${songSpotifyId}`);
-    } else if (isRatingOrReview && albumSpotifyId) {
-      router.push(`/album/${albumSpotifyId}`);
+    } else if (activity.activity_type === 'song_rating' && songNavId) {
+      router.push(`/track/${songNavId}`);
+    } else if (isRatingOrReview && albumNavId) {
+      router.push(`/album/${albumNavId}`);
     }
   }
 
@@ -376,8 +378,8 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 12).duration(300)}>
       <Pressable
-        onPress={isRatingOrReview && albumSpotifyId ? handleCardPress : undefined}
-        disabled={!isRatingOrReview || !albumSpotifyId}
+        onPress={isRatingOrReview && albumNavId ? handleCardPress : undefined}
+        disabled={!isRatingOrReview || !albumNavId}
         style={({ pressed }) => ({
           backgroundColor: Colors.surface,
           borderRadius: 16,

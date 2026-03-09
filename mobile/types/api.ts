@@ -11,6 +11,8 @@ export interface User {
   is_spotify_connected: boolean;
   spotify_user_id: string | null;
   spotify_connected_at: string | null;
+  is_apple_music_connected: boolean;
+  apple_music_connected_at: string | null;
   followers_count: number;
   following_count: number;
   total_albums_rated: number;
@@ -19,7 +21,9 @@ export interface User {
 }
 
 export interface Artist {
-  spotify_id: string;
+  id: number;
+  spotify_id: string | null;
+  apple_music_id: string | null;
   name: string;
   image_url: string | null;
   genres: string[];
@@ -27,7 +31,8 @@ export interface Artist {
 
 export interface Album {
   id: number;
-  spotify_id: string;
+  spotify_id: string | null;
+  apple_music_id: string | null;
   name: string; // "name" not "title"
   release_date: string;
   image_url: string | null; //"image_url" not "cover_image_url"
@@ -44,12 +49,15 @@ export interface Album {
 export interface Song {
   // backend calls these "songs" not "tracks"
   id: number;
-  spotify_id: string;
+  spotify_id: string | null;
+  apple_music_id: string | null;
+  isrc: string | null;
   name: string;
   artists: Artist[];
+  album_id: number;
   album_name: string;
   album_image: string | null;
-  album_spotify_id: string;
+  album_spotify_id: string | null;
   track_number: number;
   disc_number: number;
   duration_ms: number;
@@ -65,7 +73,7 @@ export interface AlbumRating {
   album: number; // album ID (integer FK)
   album_name: string;
   album_image: string | null;
-  album_spotify_id: string;
+  album_spotify_id: string | null;
   rating: number; // 0.5–5.0 in 0.5 steps
   created_at: string;
   updated_at: string;
@@ -77,7 +85,7 @@ export interface AlbumReview {
   album: number;
   album_name: string;
   album_image: string | null;
-  album_spotify_id: string;
+  album_spotify_id: string | null;
   rating: number | null; // rating ID
   rating_value: number | null;
   content: string; // NOTE: "content" not "text"
@@ -93,10 +101,10 @@ export interface SongRating {
   user: User;
   song: number;
   song_name: string;
-  song_spotify_id: string;
+  song_spotify_id: string | null;
   album_name: string;
   album_image: string | null;
-  album_spotify_id: string;
+  album_spotify_id: string | null;
   rating: number;
   created_at: string;
   updated_at: string;
@@ -107,10 +115,10 @@ export interface SongReview {
   user: User;
   song: number;
   song_name: string;
-  song_spotify_id: string;
+  song_spotify_id: string | null;
   album_name: string;
   album_image: string | null;
-  album_spotify_id: string;
+  album_spotify_id: string | null;
   rating: number | null;
   rating_value: number | null;
   content: string;
@@ -186,7 +194,8 @@ export interface AuthTokens {
 
 export interface ArtistDetail {
   id: number;
-  spotify_id: string;
+  spotify_id: string | null;
+  apple_music_id: string | null;
   name: string;
   image_url: string | null;
   genres: string[];

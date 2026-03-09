@@ -34,7 +34,7 @@ class AlbumRatingViewSet(viewsets.ModelViewSet):
             album = self.request.query_params.get('album')
             user = _get_user_filter(self.request.query_params)
             if album:
-                qs = qs.filter(album__spotify_id=album)
+                qs = qs.filter(album_id=album)
             if user == 'me':
                 qs = qs.filter(user=self.request.user)
             elif user:
@@ -70,7 +70,7 @@ class SongRatingViewSet(viewsets.ModelViewSet):
             song = self.request.query_params.get('song')
             user = _get_user_filter(self.request.query_params)
             if song:
-                qs = qs.filter(song__spotify_id=song)
+                qs = qs.filter(song_id=song)
             if user == 'me':
                 qs = qs.filter(user=self.request.user)
             elif user:
@@ -107,7 +107,7 @@ class AlbumReviewViewSet(viewsets.ModelViewSet):
             album = self.request.query_params.get('album')
             filter_user = _get_user_filter(self.request.query_params)
             if album:
-                qs = qs.filter(album__spotify_id=album)
+                qs = qs.filter(album_id=album)
             if filter_user == 'me':
                 qs = qs.filter(user=user)
             elif filter_user:
@@ -157,7 +157,7 @@ class SongReviewViewSet(viewsets.ModelViewSet):
             song = self.request.query_params.get('song')
             filter_user = _get_user_filter(self.request.query_params)
             if song:
-                qs = qs.filter(song__spotify_id=song)
+                qs = qs.filter(song_id=song)
             if filter_user == 'me':
                 qs = qs.filter(user=user)
             elif filter_user:

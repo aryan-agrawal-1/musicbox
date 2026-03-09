@@ -22,6 +22,7 @@ import {
 import { AuthContext, type AuthState, type RegisterData } from '@/contexts/auth-context';
 import { pendingAppleAuth } from '@/lib/pending-apple-auth';
 import { Colors } from '@/constants/colors';
+import { AnimatedSplash } from '@/components/animated-splash';
 import type { User, AuthTokens } from '@/types/api';
 
 SplashScreen.preventAutoHideAsync();
@@ -29,6 +30,7 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [animationDone, setAnimationDone] = useState(false);
 
   useEffect(() => {
     async function restoreSession() {
@@ -209,6 +211,9 @@ export default function RootLayout() {
         </AuthContext>
       </QueryClientProvider>
     </ThemeProvider>
+      {!isLoading && !animationDone && (
+        <AnimatedSplash onComplete={() => setAnimationDone(true)} />
+      )}
     </GestureHandlerRootView>
   );
 }

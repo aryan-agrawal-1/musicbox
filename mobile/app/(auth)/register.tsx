@@ -39,10 +39,11 @@ import { apiFetch, ApiError } from '@/lib/api';
 import { tokenStore } from '@/lib/auth';
 import { onboardingStore } from '@/lib/onboarding-store';
 import { pendingAppleAuth } from '@/lib/pending-apple-auth';
-import { connectSpotify } from '@/lib/spotify';
-import { SpotifyConnectPanel } from '@/components/spotify-connect-panel';
+import { syncAppleMusicHistory } from '@/lib/apple-music';
+import { useAppleMusicConnect } from '@/hooks/use-apple-music-connect';
+import { AppleMusicConnectPanel } from '@/components/apple-music-connect-panel';
 import { Colors } from '@/constants/colors';
-import type { AuthTokens, ListeningHistory, PaginatedResponse } from '@/types/api';
+import type { AuthTokens, Song } from '@/types/api';
 
 async function fetchDeezerPreview(artist: string, track: string): Promise<string | null> {
   if (process.env.EXPO_OS === 'web') return null;
@@ -75,7 +76,7 @@ async function fadeIn(player: AudioPlayer): Promise<void> {
   }
 }
 
-type OnboardingStep = 'username' | 'account' | 'bio' | 'pfp' | 'spotify' | 'tracks';
+type OnboardingStep = 'username' | 'account' | 'bio' | 'pfp' | 'apple-music' | 'tracks';
 
 type CoreStep = 'username' | 'account' | 'bio' | 'pfp';
 const CORE_STEPS: CoreStep[] = ['username', 'account', 'bio', 'pfp'];
@@ -1053,73 +1054,27 @@ function ProfilePictureStep({ username, onBack, onContinue, onSkip }: ProfilePic
   );
 }
 
-// Spotify connect
+// Apple Music connect
 
-type ConnectPhase = 'idle' | 'auth' | 'syncing' | 'loading';
-
-const SYNC_MESSAGES = [
-  'Syncing your listening history…',
-  'Importing recent tracks…',
-  'Building your music profile…',
-  'Almost there…',
-];
-
-interface SpotifyStepProps {
-  onConnected: (tracks: ListeningHistory[]) => void;
+interface AppleMusicStepProps {
+  onConnected: (tracks: Song[]) => void;
   onSkip: () => void;
 }
 
-function SpotifyStep({ onConnected, onSkip }: SpotifyStepProps) {
+function AppleMusicStep({ onConnected, onSkip }: AppleMusicStepProps) {
   const insets = useSafeAreaInsets();
-  const [phase, setPhase] = useState<ConnectPhase>('idle');
-  const [syncMsgIndex, setSyncMsgIndex] = useState(0);
-  const [error, setError] = useState<string | null>(null);
 
-  const isConnecting = phase !== 'idle';
-
-  // Cycle through sync messages while in 'syncing' phase
-  useEffect(() => {
-    if (phase !== 'syncing') return;
-    setSyncMsgIndex(0);
-    const interval = setInterval(() => {
-      setSyncMsgIndex(i => (i + 1) % SYNC_MESSAGES.length);
-    }, 2200);
-    return () => clearInterval(interval);
-  }, [phase]);
-
-  const loadingLabel =
-    phase === 'auth' ? 'Opening Spotify…'
-    : phase === 'syncing' ? SYNC_MESSAGES[syncMsgIndex]
-    : 'Finishing up…';
-
-  async function handleConnect() {
-    setPhase('auth');
-    setError(null);
-    try {
-      const connected = await connectSpotify();
-      if (connected) {
-        setPhase('syncing');
-        await apiFetch('/api/v1/music/listening-history/sync/', { method: 'POST' });
-        setPhase('loading');
-        const data = await apiFetch<PaginatedResponse<ListeningHistory>>(
-          '/api/v1/music/listening-history/?page=1'
-        );
-        // Deduplicate by spotify_id — keep only the most-recent play per song
-        const seen = new Set<string>();
-        const unique = data.results.filter(item => {
-          if (seen.has(item.song.spotify_id)) return false;
-          seen.add(item.song.spotify_id);
-          return true;
-        });
-        onConnected(unique.slice(0, 5));
-      } else {
-        setPhase('idle');
-      }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Connection failed. Try again.');
-      setPhase('idle');
-    }
-  }
+  const { connect: handleConnect, loadingLabel, connectingSubtitle, isConnecting, error } =
+    useAppleMusicConnect(async () => {
+      const songs = await syncAppleMusicHistory();
+      const seen = new Set<number>();
+      const unique = songs.filter(song => {
+        if (seen.has(song.id)) return false;
+        seen.add(song.id);
+        return true;
+      });
+      onConnected(unique.slice(0, 5));
+    });
 
   return (
     <View
@@ -1130,16 +1085,12 @@ function SpotifyStep({ onConnected, onSkip }: SpotifyStepProps) {
         justifyContent: 'center',
       }}
     >
-      <SpotifyConnectPanel
+      <AppleMusicConnectPanel
         title="One more thing."
-        description="Connect Spotify to unlock your listening history and personalised picks."
+        description="Connect Apple Music to import your listening history and get personalised picks."
         isConnecting={isConnecting}
         loadingLabel={loadingLabel}
-        connectingSubtitle={
-          phase === 'syncing'
-            ? "This may take a moment if your tracks\naren't in our library yet."
-            : undefined
-        }
+        connectingSubtitle={connectingSubtitle}
         error={error}
         onConnect={handleConnect}
         onSkip={onSkip}
@@ -1189,7 +1140,7 @@ function MiniStars({ value }: { value: number }) {
 }
 
 interface TrackCardProps {
-  item: ListeningHistory;
+  item: Song;
   index: number;
   rating: number | undefined;
   isActive: boolean;
@@ -1297,9 +1248,9 @@ function TrackCard({
             overflow: 'hidden',
           }}
         >
-          {item.song.album_image ? (
+          {item.album_image ? (
             <Image
-              source={{ uri: item.song.album_image }}
+              source={{ uri: item.album_image }}
               style={{ width: 52, height: 52 }}
               contentFit="cover"
               transition={200}
@@ -1318,13 +1269,13 @@ function TrackCard({
             style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
             numberOfLines={1}
           >
-            {item.song.name}
+            {item.name}
           </Text>
           <Text
             style={{ fontSize: 13, color: Colors.textSecondary, marginTop: 2 }}
             numberOfLines={1}
           >
-            {item.song.artists.map(a => a.name).join(', ')}
+            {item.artists.map(a => a.name).join(', ')}
           </Text>
           {rating !== undefined && <MiniStars value={rating} />}
         </View>
@@ -1380,27 +1331,27 @@ function NowPlayingIndicator() {
 }
 
 interface TracksStepProps {
-  tracks: ListeningHistory[];
+  tracks: Song[];
   onDone: () => void;
 }
 
 function TracksStep({ tracks, onDone }: TracksStepProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [ratings, setRatings] = useState<Record<number, number>>({});
   const [isDone, setIsDone] = useState(false);
-  const [currentPlayingId, setCurrentPlayingId] = useState<string | null>(null);
+  const [currentPlayingId, setCurrentPlayingId] = useState<number | null>(null);
 
   // URL cache — ref so reads in async handlers are always fresh
-  const previewUrls = useRef<Record<string, string>>({});
+  const previewUrls = useRef<Record<number, string>>({});
   const isSwitching = useRef(false);
 
   const player = useAudioPlayer(null);
 
   // Register rating callback so rate-song sheet can update cards immediately
   useEffect(() => {
-    onboardingStore.setRatingCallback((spotifyId, _songId, rating) => {
-      setRatings(prev => ({ ...prev, [spotifyId]: rating }));
+    onboardingStore.setRatingCallback((songId, rating) => {
+      setRatings(prev => ({ ...prev, [songId]: rating }));
     });
     return () => onboardingStore.clearRatingCallback();
   }, []);
@@ -1410,18 +1361,18 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
     if (!tracks.length) return;
     Promise.all(
       tracks.map(item =>
-        fetchDeezerPreview(item.song.artists[0]?.name ?? '', item.song.name).then(url => ({
-          spotifyId: item.song.spotify_id,
+        fetchDeezerPreview(item.artists[0]?.name ?? '', item.name).then(url => ({
+          songId: item.id,
           url,
         }))
       )
     ).then(results => {
-      results.forEach(({ spotifyId, url }) => {
-        if (url) previewUrls.current[spotifyId] = url;
+      results.forEach(({ songId, url }) => {
+        if (url) previewUrls.current[songId] = url;
       });
-      const firstUrl = previewUrls.current[tracks[0].song.spotify_id];
+      const firstUrl = previewUrls.current[tracks[0].id];
       if (firstUrl) {
-        setCurrentPlayingId(tracks[0].song.spotify_id);
+        setCurrentPlayingId(tracks[0].id);
         player.replace(firstUrl);
         fadeIn(player);
       }
@@ -1429,16 +1380,16 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function switchToSong(item: ListeningHistory) {
+  async function switchToSong(item: Song) {
     if (isSwitching.current) return;
     isSwitching.current = true;
     try {
       if (currentPlayingId) await fadeOut(player);
-      const url = previewUrls.current[item.song.spotify_id]
-        ?? await fetchDeezerPreview(item.song.artists[0]?.name ?? '', item.song.name);
+      const url = previewUrls.current[item.id]
+        ?? await fetchDeezerPreview(item.artists[0]?.name ?? '', item.name);
       if (url) {
-        previewUrls.current[item.song.spotify_id] = url;
-        setCurrentPlayingId(item.song.spotify_id);
+        previewUrls.current[item.id] = url;
+        setCurrentPlayingId(item.id);
         player.replace(url);
         await fadeIn(player);
       }
@@ -1447,20 +1398,19 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
     }
   }
 
-  function openRateSheet(item: ListeningHistory) {
+  function openRateSheet(item: Song) {
     // Only switch audio if tapping a different song
-    if (item.song.spotify_id !== currentPlayingId) {
+    if (item.id !== currentPlayingId) {
       switchToSong(item);
     }
     router.push({
       pathname: '/(auth)/rate-song',
       params: {
-        spotifyId: item.song.spotify_id,
-        songId: String(item.song.id),
-        name: item.song.name,
-        artists: JSON.stringify(item.song.artists),
-        albumName: item.song.album_name,
-        albumImage: item.song.album_image ?? '',
+        songId: String(item.id),
+        name: item.name,
+        artists: JSON.stringify(item.artists),
+        albumName: item.album_name,
+        albumImage: item.album_image ?? '',
       },
     });
   }
@@ -1505,8 +1455,8 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
             key={item.id}
             item={item}
             index={index}
-            rating={ratings[item.song.spotify_id]}
-            isActive={currentPlayingId === item.song.spotify_id}
+            rating={ratings[item.id]}
+            isActive={currentPlayingId === item.id}
             onPress={() => openRateSheet(item)}
           />
         ))}
@@ -1559,7 +1509,7 @@ export default function RegisterScreen() {
   const [step, setStep] = useState<OnboardingStep>('username');
   const [direction, setDirection] = useState<1 | -1>(1);
   const [username, setUsername] = useState('');
-  const [recentTracks, setRecentTracks] = useState<ListeningHistory[]>([]);
+  const [recentTracks, setRecentTracks] = useState<Song[]>([]);
 
   async function handleAppleRegister() {
     const data = pendingAppleAuth.get();
@@ -1659,13 +1609,13 @@ export default function RegisterScreen() {
             <ProfilePictureStep
               username={username}
               onBack={() => goBack('bio')}
-              onContinue={() => advance('spotify')}
-              onSkip={() => advance('spotify')}
+              onContinue={() => advance('apple-music')}
+              onSkip={() => advance('apple-music')}
             />
           )}
-          {step === 'spotify' && (
-            <SpotifyStep
-              onConnected={tracks => {
+          {step === 'apple-music' && (
+            <AppleMusicStep
+              onConnected={(tracks: Song[]) => {
                 setRecentTracks(tracks);
                 advance('tracks');
               }}

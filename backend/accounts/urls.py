@@ -25,4 +25,10 @@ urlpatterns = [
     path('spotify/callback/', views.spotify_callback, name='spotify-callback'),
     path('spotify/disconnect/', views.spotify_disconnect, name='spotify-disconnect'),
     path('spotify/status/', views.spotify_status, name='spotify-status'),
+
+    # Apple Music
+    path('apple-music/developer-token/', views.apple_music_developer_token, name='apple-music-developer-token'),
+    path('apple-music/connect/', views.apple_music_connect, name='apple-music-connect'),
+    path('apple-music/disconnect/', views.apple_music_disconnect, name='apple-music-disconnect'),
+    path('apple-music/status/', views.apple_music_status, name='apple-music-status'),
 ]
