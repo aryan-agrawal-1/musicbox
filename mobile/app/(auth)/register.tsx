@@ -10,7 +10,7 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -151,7 +151,7 @@ function UsernameStep({ username, setUsername, onContinue, onAppleComplete }: Us
   const [appleError, setAppleError] = useState<string | null>(null);
 
   async function handlePress() {
-    if (!onAppleComplete) { onContinue(); return; }
+    if (!onAppleComplete) { Keyboard.dismiss(); onContinue(); return; }
     setIsAppleRegistering(true);
     setAppleError(null);
     try {
@@ -209,7 +209,7 @@ function UsernameStep({ username, setUsername, onContinue, onAppleComplete }: Us
     <View style={{ flex: 1 }}>
       {/* Back */}
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => { Keyboard.dismiss(); router.back(); }}
         hitSlop={16}
         style={{ position: 'absolute', top: insets.top + 12, left: 16, padding: 8, zIndex: 10 }}
       >
@@ -328,6 +328,7 @@ interface AccountStepProps {
 
 function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
   const insets = useSafeAreaInsets();
+  const emailRef = useRef<TextInput>(null);
 
   const [email, setEmail] = useState('');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
@@ -337,6 +338,11 @@ function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => emailRef.current?.focus(), 650);
+    return () => clearTimeout(t);
+  }, []);
 
   const emailBorder = useSharedValue(0);
   const passwordBorder = useSharedValue(0);
@@ -401,6 +407,7 @@ function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
         body: JSON.stringify({ username, password }),
       });
       await tokenStore.setTokens(tokens.access, tokens.refresh);
+      Keyboard.dismiss();
       onSuccess();
     } catch (err) {
       if (err instanceof ApiError && err.data) {
@@ -460,6 +467,7 @@ function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
           style={[{ borderBottomWidth: 1, paddingBottom: 2 }, emailBorderStyle]}
         >
           <TextInput
+            ref={emailRef}
             style={{ fontSize: 17, color: Colors.textPrimary, paddingVertical: 12, backgroundColor: Colors.background }}
             placeholder="Email address"
             placeholderTextColor={Colors.textTertiary}
@@ -620,7 +628,7 @@ function AccountStep({ username, onBack, onSuccess }: AccountStepProps) {
 // Bio
 
 interface BioStepProps {
-  onBack: () => void;
+  onBack?: () => void;
   onContinue: () => void;
   onSkip: () => void;
 }
@@ -636,11 +644,6 @@ function BioStep({ onBack, onContinue, onSkip }: BioStepProps) {
   const borderStyle = useAnimatedStyle(() => ({
     borderColor: interpolateColor(borderAnim.value, [0, 1], [Colors.surfaceHigh, Colors.accent]),
   }));
-
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 650);
-    return () => clearTimeout(t);
-  }, []);
 
   useEffect(() => {
     // Keyboard may already be visible when arriving from a previous step
@@ -684,14 +687,16 @@ function BioStep({ onBack, onContinue, onSkip }: BioStepProps) {
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <Pressable
-        onPress={onBack}
-        hitSlop={16}
-        style={{ position: 'absolute', top: insets.top + 12, left: 16, padding: 8, zIndex: 10 }}
-      >
-        <Text style={{ fontSize: 24, color: Colors.textPrimary }}>‹</Text>
-      </Pressable>
+    <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
+      {onBack && (
+        <Pressable
+          onPress={onBack}
+          hitSlop={16}
+          style={{ position: 'absolute', top: insets.top + 12, left: 16, padding: 8, zIndex: 10 }}
+        >
+          <Text style={{ fontSize: 24, color: Colors.textPrimary }}>‹</Text>
+        </Pressable>
+      )}
 
       <View
         style={{
@@ -802,7 +807,7 @@ function BioStep({ onBack, onContinue, onSkip }: BioStepProps) {
           </Pressable>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -810,7 +815,7 @@ function BioStep({ onBack, onContinue, onSkip }: BioStepProps) {
 
 interface ProfilePictureStepProps {
   username: string;
-  onBack: () => void;
+  onBack?: () => void;
   onContinue: () => void;
   onSkip: () => void;
 }
@@ -896,13 +901,15 @@ function ProfilePictureStep({ username, onBack, onContinue, onSkip }: ProfilePic
 
   return (
     <View style={{ flex: 1 }}>
-      <Pressable
-        onPress={onBack}
-        hitSlop={16}
-        style={{ position: 'absolute', top: insets.top + 12, left: 16, padding: 8, zIndex: 10 }}
-      >
-        <Text style={{ fontSize: 24, color: Colors.textPrimary }}>‹</Text>
-      </Pressable>
+      {onBack && (
+        <Pressable
+          onPress={onBack}
+          hitSlop={16}
+          style={{ position: 'absolute', top: insets.top + 12, left: 16, padding: 8, zIndex: 10 }}
+        >
+          <Text style={{ fontSize: 24, color: Colors.textPrimary }}>‹</Text>
+        </Pressable>
+      )}
 
       <View
         style={{
@@ -1503,13 +1510,13 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const auth = use(AuthContext);
-
   const [isAppleMode] = useState(() => pendingAppleAuth.get() !== null);
 
   const [step, setStep] = useState<OnboardingStep>('username');
   const [direction, setDirection] = useState<1 | -1>(1);
   const [username, setUsername] = useState('');
   const [recentTracks, setRecentTracks] = useState<Song[]>([]);
+  const [accountCreated, setAccountCreated] = useState(false);
 
   async function handleAppleRegister() {
     const data = pendingAppleAuth.get();
@@ -1525,6 +1532,7 @@ export default function RegisterScreen() {
     });
     await tokenStore.setTokens(tokens.access, tokens.refresh);
     pendingAppleAuth.clear();
+    setAccountCreated(true);
     advance('bio');
   }
 
@@ -1544,6 +1552,7 @@ export default function RegisterScreen() {
   }
 
   function goBack(to: OnboardingStep) {
+    Keyboard.dismiss();
     setDirection(-1);
     requestAnimationFrame(() => setStep(to));
   }
@@ -1555,6 +1564,7 @@ export default function RegisterScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
+      <Stack.Screen options={{ gestureEnabled: !accountCreated }} />
       <KeyboardAvoidingView
         behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -1595,12 +1605,12 @@ export default function RegisterScreen() {
             <AccountStep
               username={username}
               onBack={() => goBack('username')}
-              onSuccess={() => advance('bio')}
+              onSuccess={() => { setAccountCreated(true); advance('bio'); }}
             />
           )}
           {step === 'bio' && (
             <BioStep
-              onBack={() => goBack(isAppleMode ? 'username' : 'account')}
+              onBack={accountCreated ? undefined : () => goBack(isAppleMode ? 'username' : 'account')}
               onContinue={() => advance('pfp')}
               onSkip={() => advance('pfp')}
             />
@@ -1608,7 +1618,7 @@ export default function RegisterScreen() {
           {step === 'pfp' && (
             <ProfilePictureStep
               username={username}
-              onBack={() => goBack('bio')}
+              onBack={accountCreated ? undefined : () => goBack('bio')}
               onContinue={() => advance('apple-music')}
               onSkip={() => advance('apple-music')}
             />
