@@ -63,6 +63,8 @@ interface AppleMusicConnectPanelProps {
   error?: string | null;
   onConnect: () => void;
   onSkip?: () => void;
+  skipLabel?: string;
+  skipNote?: string;
 }
 
 export function AppleMusicConnectPanel({
@@ -74,6 +76,8 @@ export function AppleMusicConnectPanel({
   error,
   onConnect,
   onSkip,
+  skipLabel = 'Skip for now',
+  skipNote,
 }: AppleMusicConnectPanelProps) {
   return (
     <View style={{ alignItems: 'center', paddingHorizontal: 32 }}>
@@ -191,9 +195,40 @@ export function AppleMusicConnectPanel({
           </Pressable>
 
           {onSkip && (
-            <Pressable onPress={onSkip} style={{ marginTop: 20 }} hitSlop={12}>
-              <Text style={{ fontSize: 14, color: Colors.textTertiary }}>Skip for now →</Text>
-            </Pressable>
+            <>
+              <Pressable
+                onPress={onSkip}
+                style={({ pressed }) => ({
+                  height: 52,
+                  borderRadius: 14,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
+                  borderColor: Colors.surfaceHigh,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '100%',
+                  marginTop: 12,
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '500', color: Colors.textSecondary }}>
+                  {skipLabel}
+                </Text>
+              </Pressable>
+              {skipNote && (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: Colors.textTertiary,
+                    textAlign: 'center',
+                    marginTop: 14,
+                    lineHeight: 17,
+                  }}
+                >
+                  {skipNote}
+                </Text>
+              )}
+            </>
           )}
         </>
       )}

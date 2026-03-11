@@ -43,9 +43,11 @@ function UserVerb({
   const verb =
     activity.activity_type === 'album_rating' || activity.activity_type === 'song_rating'
       ? 'rated'
-      : activity.activity_type === 'album_review' || activity.activity_type === 'song_review'
-        ? 'reviewed'
-        : 'is now following';
+      : activity.activity_type === 'album_review'
+        ? 'Album Review'
+        : activity.activity_type === 'song_review'
+          ? 'Track Review'
+          : 'is now following';
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>

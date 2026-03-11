@@ -1072,6 +1072,7 @@ interface AppleMusicStepProps {
 
 function AppleMusicStep({ onConnected, onSkip }: AppleMusicStepProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const { connect: handleConnect, loadingLabel, connectingSubtitle, isConnecting, error } =
     useAppleMusicConnect(async () => {
@@ -1096,14 +1097,27 @@ function AppleMusicStep({ onConnected, onSkip }: AppleMusicStepProps) {
     >
       <AppleMusicConnectPanel
         title="One more thing."
-        description="Connect Apple Music to import your listening history and get personalised picks."
+        description="Connect Apple Music to unlock your listening history. Noted works great without it."
         isConnecting={isConnecting}
         loadingLabel={loadingLabel}
         connectingSubtitle={connectingSubtitle}
         error={error}
         onConnect={handleConnect}
         onSkip={onSkip}
+        skipLabel="Skip for now"
+        skipNote="You do not need a music integration for the app to work!"
       />
+      {!isConnecting && (
+        <Pressable
+          onPress={() => router.push('/(auth)/spotify-petition')}
+          hitSlop={12}
+          style={{ alignItems: 'center', marginTop: 20 }}
+        >
+          <Text style={{ fontSize: 13, color: Colors.textTertiary }}>
+            Want Spotify instead? →
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -1352,6 +1366,7 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
   const [currentPlayingId, setCurrentPlayingId] = useState<number | null>(null);
   const pendingFinishAfterShareRef = useRef(false);
   const hasLeftForShareRef = useRef(false);
+  const ratedCountAtLastShareRef = useRef<number | null>(null);
 
   // URL cache — ref so reads in async handlers are always fresh
   const previewUrls = useRef<Record<number, string>>({});
@@ -1393,9 +1408,10 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
 
   useFocusEffect(useCallback(() => {
     if (pendingFinishAfterShareRef.current && hasLeftForShareRef.current) {
+      // User swiped off the share panel — re-enable Done so they can press it again
       pendingFinishAfterShareRef.current = false;
       hasLeftForShareRef.current = false;
-      onDone();
+      setIsDone(false);
     }
 
     return () => {
@@ -1403,7 +1419,7 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
         hasLeftForShareRef.current = true;
       }
     };
-  }, [onDone]));
+  }, []));
 
   async function switchToSong(item: Song) {
     if (isSwitching.current) return;
@@ -1443,7 +1459,9 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
   async function handleDone() {
     setIsDone(true);
     await fadeOut(player);
-    if (ratedCount > 0) {
+    // Show share panel only if there are ratings AND the count has changed since we last showed it
+    if (ratedCount > 0 && ratedCountAtLastShareRef.current !== ratedCount) {
+      ratedCountAtLastShareRef.current = ratedCount;
       const trackData: OnboardingTrackData[] = Object.entries(ratings)
         .slice(0, 9)
         .map(([idStr, rating]) => {

@@ -32,3 +32,12 @@ export const sharePreviewScreenOptions: NativeStackNavigationOptions = {
   sheetAllowedDetents: [0.68, 1.0] as number[],
   contentStyle: { backgroundColor: 'transparent' },
 };
+
+export const spotifyPetitionScreenOptions: NativeStackNavigationOptions = {
+  headerShown: false,
+  headerLargeTitle: false,
+  presentation: 'formSheet',
+  sheetGrabberVisible: true,
+  sheetAllowedDetents: [0.6, 1.0] as number[],
+  contentStyle: { backgroundColor: 'transparent' },
+};

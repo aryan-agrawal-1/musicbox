@@ -13,6 +13,8 @@ export interface User {
   spotify_connected_at: string | null;
   is_apple_music_connected: boolean;
   apple_music_connected_at: string | null;
+  spotify_petition_signed: boolean;
+  spotify_petition_count: number;
   followers_count: number;
   following_count: number;
   total_albums_rated: number;

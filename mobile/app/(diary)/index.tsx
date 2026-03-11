@@ -1,5 +1,6 @@
 import { use, useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, SectionList, ScrollView, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Link, Stack } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
@@ -164,9 +165,12 @@ interface DiaryEmptyProps {
   loadingLabel: string;
   error?: string | null;
   onConnect: () => void;
+  onSpotifyPress?: () => void;
+  spotifyPetitionSigned?: boolean;
+  spotifyPetitionCount?: number;
 }
 
-function DiaryEmpty({ isAppleMusicConnected, isConnecting, loadingLabel, error, onConnect }: DiaryEmptyProps) {
+function DiaryEmpty({ isAppleMusicConnected, isConnecting, loadingLabel, error, onConnect, onSpotifyPress, spotifyPetitionSigned, spotifyPetitionCount }: DiaryEmptyProps) {
   if (isAppleMusicConnected) {
     return (
       <ScrollView
@@ -201,6 +205,21 @@ function DiaryEmpty({ isAppleMusicConnected, isConnecting, loadingLabel, error, 
         error={error}
         onConnect={onConnect}
       />
+      {!isConnecting && (
+        spotifyPetitionSigned ? (
+          <Text style={{ fontSize: 13, color: Colors.textTertiary, textAlign: 'center', marginTop: 16, paddingHorizontal: 32 }}>
+            {(spotifyPetitionCount ?? 0) >= 500
+              ? `You and ${((spotifyPetitionCount ?? 0) - 1).toLocaleString()} other people want Spotify`
+              : 'You signed the Spotify petition'}
+          </Text>
+        ) : onSpotifyPress ? (
+          <Pressable onPress={onSpotifyPress} hitSlop={12} style={{ alignItems: 'center', marginTop: 16 }}>
+            <Text style={{ fontSize: 13, color: Colors.textTertiary }}>
+              Want Spotify instead? →
+            </Text>
+          </Pressable>
+        ) : null
+      )}
     </ScrollView>
   );
 }
@@ -238,6 +257,7 @@ export default function DiaryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const hasSyncedOnMount = useRef(false);
   const auth = use(AuthContext);
+  const router = useRouter();
 
   const {
     data,
@@ -340,6 +360,13 @@ export default function DiaryScreen() {
           loadingLabel={connectLoadingLabel}
           error={connectError}
           onConnect={handleConnectAppleMusic}
+          spotifyPetitionSigned={auth.user?.spotify_petition_signed}
+          spotifyPetitionCount={auth.user?.spotify_petition_count}
+          onSpotifyPress={
+            auth.user?.spotify_petition_signed
+              ? undefined
+              : () => router.push('/(diary)/spotify-petition')
+          }
         />
       ) : (
         <SectionList

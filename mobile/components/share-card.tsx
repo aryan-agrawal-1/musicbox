@@ -130,9 +130,20 @@ export const ReviewShareCard = forwardRef<View, ReviewShareCardProps>(
 // ─── OnboardingShareCard ──────────────────────────────────────────────────────
 
 export const ONBOARDING_CARD_SIZE = 400;
-const GRID_SIZE = 3;
-const TOTAL_SLOTS = GRID_SIZE * GRID_SIZE;
-const TILE_SIZE = ONBOARDING_CARD_SIZE / GRID_SIZE;
+
+// Adaptive row layouts: each entry is a list of track indices per row.
+// 1 → full card | 2 → two columns | 3 → full top + 2 below
+// 4 → 2×2       | 5 → 3 top + 2 below
+function getRows(count: number): number[][] {
+  switch (count) {
+    case 1: return [[0]];
+    case 2: return [[0, 1]];
+    case 3: return [[0], [1, 2]];
+    case 4: return [[0, 1], [2, 3]];
+    case 5: return [[0, 1, 2], [3, 4]];
+    default: return [[0]];
+  }
+}
 
 function TileRatingBadge({ rating }: { rating: number }) {
   if (!Number.isFinite(rating) || rating <= 0) return null;
@@ -161,35 +172,40 @@ interface OnboardingShareCardProps {
 
 export const OnboardingShareCard = forwardRef<View, OnboardingShareCardProps>(
   function OnboardingShareCard({ tracks, onImageLoad }, ref) {
-    const slots: (OnboardingTrackData | null)[] = [
-      ...tracks.slice(0, TOTAL_SLOTS),
-      ...Array(Math.max(0, TOTAL_SLOTS - tracks.length)).fill(null),
-    ];
+    const n = Math.min(tracks.length, 5);
+    const rows = getRows(n).map(indices => indices.map(i => tracks[i] ?? null));
+    const rowHeight = ONBOARDING_CARD_SIZE / rows.length;
 
     return (
       <View
         ref={ref}
         style={{ width: ONBOARDING_CARD_SIZE, height: ONBOARDING_CARD_SIZE, backgroundColor: Colors.background, borderRadius: 24, overflow: 'hidden' }}
       >
-        {/* 3×3 grid */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', width: ONBOARDING_CARD_SIZE, height: ONBOARDING_CARD_SIZE }}>
-          {slots.map((slot, i) => (
-            <View key={i} style={{ width: TILE_SIZE, height: TILE_SIZE, backgroundColor: Colors.surface }}>
-              {slot?.albumImage ? (
-                <Image
-                  source={{ uri: slot.albumImage }}
-                  style={{ width: TILE_SIZE, height: TILE_SIZE }}
-                  contentFit="cover"
-                  onLoad={i === 0 ? onImageLoad : undefined}
-                />
-              ) : null}
-              {slot ? (
-                <View style={{ position: 'absolute', bottom: 8, right: 8 }}>
-                  <TileRatingBadge rating={slot.rating} />
-                </View>
-              ) : null}
-            </View>
-          ))}
+        <View style={{ flex: 1 }}>
+          {rows.map((row, rowIdx) => {
+            const tileWidth = ONBOARDING_CARD_SIZE / row.length;
+            return (
+              <View key={rowIdx} style={{ flexDirection: 'row', height: rowHeight }}>
+                {row.map((track, colIdx) => (
+                  <View key={colIdx} style={{ width: tileWidth, height: rowHeight, backgroundColor: Colors.surface }}>
+                    {track?.albumImage ? (
+                      <Image
+                        source={{ uri: track.albumImage }}
+                        style={{ width: tileWidth, height: rowHeight }}
+                        contentFit="cover"
+                        onLoad={rowIdx === 0 && colIdx === 0 ? onImageLoad : undefined}
+                      />
+                    ) : null}
+                    {track ? (
+                      <View style={{ position: 'absolute', bottom: 8, right: 8 }}>
+                        <TileRatingBadge rating={track.rating} />
+                      </View>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            );
+          })}
         </View>
 
         {/* Bottom overlay */}

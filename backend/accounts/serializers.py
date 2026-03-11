@@ -12,6 +12,7 @@ class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model"""
 
     is_apple_music_connected = serializers.BooleanField(read_only=True)
+    spotify_petition_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -21,8 +22,13 @@ class UserSerializer(serializers.ModelSerializer):
             'total_albums_rated', 'total_songs_rated', 'total_reviews',
             'spotify_user_id', 'spotify_connected_at',
             'is_apple_music_connected', 'apple_music_connected_at',
+            'spotify_petition_signed', 'spotify_petition_count',
             'created_at'
         ]
+
+    @extend_schema_field(serializers.IntegerField)
+    def get_spotify_petition_count(self, obj) -> int:
+        return User.objects.filter(spotify_petition_signed=True).count()
         read_only_fields = [
             'id', 'total_albums_rated', 'total_songs_rated', 'total_reviews',
             'spotify_user_id', 'spotify_connected_at',
@@ -59,6 +65,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     is_apple_music_connected = serializers.BooleanField(read_only=True)
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
+    spotify_petition_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -69,6 +76,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'is_spotify_connected', 'spotify_user_id', 'spotify_connected_at',
             'is_apple_music_connected', 'apple_music_connected_at',
             'followers_count', 'following_count',
+            'spotify_petition_signed', 'spotify_petition_count',
             'created_at', 'username_last_changed'
         ]
         read_only_fields = [
@@ -87,6 +95,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.IntegerField)
     def get_following_count(self, obj) -> int:
         return obj.following.count()
+
+    @extend_schema_field(serializers.IntegerField)
+    def get_spotify_petition_count(self, obj) -> int:
+        return User.objects.filter(spotify_petition_signed=True).count()
 
     def validate_username(self, value):
         instance = self.instance

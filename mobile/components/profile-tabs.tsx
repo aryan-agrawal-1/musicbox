@@ -32,10 +32,10 @@ export { displayName };
 
 function RatingGridItem({ rating }: { rating: AlbumRating | SongRating }) {
   const router = useRouter();
-  const isSong = 'song_spotify_id' in rating;
+  const isSong = 'song' in rating;
   const href = isSong
-    ? (`/track/${(rating as SongRating).song_spotify_id}` as `/${string}`)
-    : (`/album/${rating.album_spotify_id}` as `/${string}`);
+    ? (`/track/${(rating as SongRating).song}` as `/${string}`)
+    : (`/album/${(rating as AlbumRating).album}` as `/${string}`);
 
   return (
     <Pressable

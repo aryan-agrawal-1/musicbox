@@ -106,6 +106,9 @@ export function ReviewCard({ review, type = 'album' }: ReviewCardProps) {
               {review.album_name}
             </Text>
           )}
+          <Text style={{ fontSize: 11, color: Colors.textTertiary, marginTop: 1 }}>
+            {type === 'song' ? 'Track Review' : 'Album Review'}
+          </Text>
         </View>
       </View>
 

@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { sharePreviewScreenOptions } from '@/lib/navigation';
+import { sharePreviewScreenOptions, spotifyPetitionScreenOptions } from '@/lib/navigation';
 
 export default function AuthLayout() {
   return (
@@ -18,6 +18,7 @@ export default function AuthLayout() {
         }}
       />
       <Stack.Screen name="share-preview" options={sharePreviewScreenOptions} />
+      <Stack.Screen name="spotify-petition" options={spotifyPetitionScreenOptions} />
     </Stack>
   );
 }

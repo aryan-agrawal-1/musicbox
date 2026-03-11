@@ -10,7 +10,7 @@ import { apiFetch } from './api';
  * Throws on network/API errors.
  */
 export async function connectSpotify(): Promise<boolean> {
-  const scheme = Constants.expoConfig?.scheme ?? 'muze';
+  const scheme = Constants.expoConfig?.scheme ?? 'noted';
   const { auth_url } = await apiFetch<{ auth_url: string }>(
     `/api/v1/auth/spotify/connect/?redirect_scheme=${scheme}`,
   );

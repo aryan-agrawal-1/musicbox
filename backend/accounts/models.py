@@ -22,6 +22,7 @@ class User(AbstractUser):
     spotify_refresh_token = models.CharField(max_length=500, null=True, blank=True)
     spotify_token_expires_at = models.DateTimeField(null=True, blank=True)
     spotify_connected_at = models.DateTimeField(null=True, blank=True)
+    spotify_petition_signed = models.BooleanField(default=False)
 
     # Apple Music integration
     apple_music_user_token = models.CharField(max_length=2000, null=True, blank=True)

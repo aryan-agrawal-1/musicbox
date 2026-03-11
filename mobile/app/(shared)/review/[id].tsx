@@ -140,8 +140,8 @@ export default function ReviewScreen() {
     : (review as { song_name: string }).song_name ?? review.album_name;
 
   const mediaPath = reviewType === 'album'
-    ? `/album/${review.album_spotify_id}`
-    : `/track/${(review as { song_spotify_id: string }).song_spotify_id}`;
+    ? `/album/${(review as { album: number }).album}`
+    : `/track/${(review as { song: number }).song}`;
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
@@ -231,7 +231,7 @@ export default function ReviewScreen() {
                 {mediaName}
               </Text>
               <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.58)' }}>
-                review by @{review.user.username}
+                {reviewType === 'song' ? 'track' : 'album'} review by @{review.user.username}
               </Text>
             </View>
 
