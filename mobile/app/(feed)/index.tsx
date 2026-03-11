@@ -196,6 +196,7 @@ export default function FeedScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
               contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
             >
               {(popularData?.results ?? []).map(album => (
@@ -218,6 +219,7 @@ export default function FeedScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
               contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
             >
               {(newData?.results ?? []).map(album => (
