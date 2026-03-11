@@ -1,4 +1,6 @@
 import { use, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+
 import {
   View,
   Text,
@@ -328,13 +330,19 @@ export default function ProfileScreen() {
   const user = auth.user;
   const username = user?.username ?? '';
 
+  const queryClient = useQueryClient();
   const { pickAndUploadAvatar } = useAvatarUpload(auth.refreshUser);
   const ratingsQuery = useUserRatings(username);
   const ratings = ratingsQuery.data?.pages.flatMap((p) => p.results) ?? [];
 
   async function onRefresh() {
     setRefreshing(true);
-    await auth.refreshUser();
+    await Promise.all([
+      auth.refreshUser(),
+      queryClient.invalidateQueries({ queryKey: ['user-activity', username] }),
+      queryClient.invalidateQueries({ queryKey: ['user-ratings', username] }),
+      queryClient.invalidateQueries({ queryKey: ['user-reviews', username] }),
+    ]);
     setRefreshing(false);
   }
 
@@ -393,6 +401,7 @@ export default function ProfileScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={Colors.accent}
+            progressViewOffset={insets.top}
           />
         }
       >
