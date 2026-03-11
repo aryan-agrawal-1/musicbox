@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
@@ -11,7 +11,6 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { sharePreviewStore } from '@/lib/share-preview-store';
 import type { ReviewShareData } from '@/types/share';
@@ -56,7 +55,6 @@ const HERO_HEIGHT = 360;
 export default function ReviewScreen() {
   const { id, type = 'album' } = useLocalSearchParams<{ id: string; type: 'album' | 'song' }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   const [expanded, setExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -74,6 +72,16 @@ export default function ReviewScreen() {
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
   const toggleReviewLike = useToggleReviewLike(id, reviewType);
+
+  // ─── Double-tap to like ────────────────────────────────────────────────────
+  const lastTapRef = useRef(0);
+
+  function handleHeroDoubleTap() {
+    const now = Date.now();
+    const isDoubleTap = now - lastTapRef.current < 300;
+    lastTapRef.current = isDoubleTap ? 0 : now;
+    if (isDoubleTap) handleReviewLike();
+  }
 
   // ─── Like animation ────────────────────────────────────────────────────────
   const heartScale = useSharedValue(1);
@@ -135,16 +143,43 @@ export default function ReviewScreen() {
     ? `/album/${review.album_spotify_id}`
     : `/track/${(review as { song_spotify_id: string }).song_spotify_id}`;
 
-  const commentsCount = review.comments_count;
-
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
-      <Stack.Screen options={{ title: mediaName, headerLargeTitle: false }} />
+      <Stack.Screen
+        options={{
+          title: mediaName,
+          headerLargeTitle: false,
+          headerRight: () => (
+            <Pressable
+              onPress={() =>
+                openShareSheet({
+                  songOrAlbumName: mediaName,
+                  artistName: review.album_name,
+                  albumImage: review.album_image,
+                  ratingValue: Number(review.rating_value ?? 0),
+                  reviewText: review.content ?? '',
+                  username: review.user.username,
+                  avatarUrl: review.user.avatar_url ?? null,
+                  type: reviewType,
+                } satisfies ReviewShareData)
+              }
+              hitSlop={10}
+              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, paddingHorizontal: 4 })}
+            >
+              <Image
+                source="sf:square.and.arrow.up"
+                style={{ width: 20, height: 20 }}
+                tintColor={Colors.textSecondary}
+              />
+            </Pressable>
+          ),
+        }}
+      />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
 
         {/* ── Hero ── */}
-        <View style={{ height: HERO_HEIGHT, overflow: 'hidden' }}>
+        <Pressable onPress={handleHeroDoubleTap} style={{ height: HERO_HEIGHT, overflow: 'hidden' }}>
           {/* Blurred background */}
           <Image
             source={{ uri: review.album_image ?? undefined }}
@@ -210,7 +245,7 @@ export default function ReviewScreen() {
               {formatRelativeTime(review.created_at)}
             </Text>
           </View>
-        </View>
+        </Pressable>
 
         {/* ── Reviewer row ── */}
         <Pressable
@@ -235,7 +270,7 @@ export default function ReviewScreen() {
         </Pressable>
 
         {/* ── Review text ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 20 }}>
           <Text
             selectable
             numberOfLines={expanded ? undefined : 7}
@@ -255,6 +290,43 @@ export default function ReviewScreen() {
           )}
         </View>
 
+        {/* ── Inline actions ── */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, paddingHorizontal: 20, paddingBottom: 28 }}>
+          {/* Like */}
+          <Pressable
+            onPress={handleReviewLike}
+            hitSlop={10}
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, opacity: pressed ? 0.6 : 1 })}
+          >
+            <Animated.View style={heartStyle}>
+              <Image
+                source={review.is_liked ? 'sf:heart.fill' : 'sf:heart'}
+                style={{ width: 17, height: 17 }}
+                tintColor={review.is_liked ? '#FF3B30' : Colors.textTertiary}
+              />
+            </Animated.View>
+            <Text style={{ fontSize: 14, color: review.is_liked ? '#FF3B30' : Colors.textTertiary, fontVariant: ['tabular-nums'] }}>
+              {review.likes_count > 0 ? review.likes_count : 'Like'}
+            </Text>
+          </Pressable>
+
+          {/* Comment */}
+          <Pressable
+            onPress={() => router.push({ pathname: '/review/comments', params: { reviewId: id, type: reviewType } })}
+            hitSlop={10}
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, opacity: pressed ? 0.6 : 1 })}
+          >
+            <Image
+              source="sf:bubble.left"
+              style={{ width: 17, height: 17 }}
+              tintColor={Colors.textTertiary}
+            />
+            <Text style={{ fontSize: 14, color: Colors.textTertiary, fontVariant: ['tabular-nums'] }}>
+              {review.comments_count > 0 ? review.comments_count : 'Comment'}
+            </Text>
+          </Pressable>
+        </View>
+
         {/* ── More from user ── */}
         {(moreReviews?.results?.length ?? 0) > 0 && (
           <View style={{ marginTop: 4 }}>
@@ -270,118 +342,6 @@ export default function ReviewScreen() {
         )}
       </ScrollView>
 
-      {/* ── Fixed action bar ── */}
-      <View
-        style={{
-          backgroundColor: Colors.background,
-          borderTopWidth: 1,
-          borderTopColor: Colors.separator,
-          paddingBottom: insets.bottom,
-        }}
-      >
-        <View style={{ flexDirection: 'row', height: 52 }}>
-          {/* Like */}
-          <Pressable
-            onPress={handleReviewLike}
-            style={({ pressed }) => ({
-              flex: 1,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 7,
-              opacity: pressed ? 0.65 : 1,
-            })}
-          >
-            <Animated.View style={heartStyle}>
-              <Image
-                source={review.is_liked ? 'sf:heart.fill' : 'sf:heart'}
-                style={{ width: 19, height: 19 }}
-                tintColor={review.is_liked ? '#FF3B30' : Colors.textSecondary}
-              />
-            </Animated.View>
-            <Text
-              style={{
-                fontSize: 15,
-                fontWeight: '500',
-                color: review.is_liked ? '#FF3B30' : Colors.textSecondary,
-              }}
-            >
-              {review.likes_count > 0 ? review.likes_count : 'Like'}
-            </Text>
-          </Pressable>
-
-          <View
-            style={{
-              width: 1,
-              backgroundColor: Colors.separator,
-              height: 24,
-              alignSelf: 'center',
-            }}
-          />
-
-          {/* Comment */}
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: '/review/comments',
-                params: { reviewId: id, type: reviewType },
-              })
-            }
-            style={({ pressed }) => ({
-              flex: 1,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 7,
-              opacity: pressed ? 0.65 : 1,
-            })}
-          >
-            <Image
-              source="sf:bubble.left"
-              style={{ width: 19, height: 19 }}
-              tintColor={Colors.textSecondary}
-            />
-            <Text style={{ fontSize: 15, fontWeight: '500', color: Colors.textSecondary }}>
-              {commentsCount > 0 ? commentsCount : 'Comment'}
-            </Text>
-          </Pressable>
-
-          <View style={{ width: 1, backgroundColor: Colors.separator, height: 24, alignSelf: 'center' }} />
-
-          {/* Share */}
-          <Pressable
-            onPress={() =>
-              openShareSheet({
-                songOrAlbumName: mediaName,
-                artistName: review.album_name,
-                albumImage: review.album_image,
-                ratingValue: Number(review.rating_value ?? 0),
-                reviewText: review.content ?? '',
-                username: review.user.username,
-                avatarUrl: review.user.avatar_url ?? null,
-                type: reviewType,
-              } satisfies ReviewShareData)
-            }
-            style={({ pressed }) => ({
-              flex: 1,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 7,
-              opacity: pressed ? 0.65 : 1,
-            })}
-          >
-            <Image
-              source="sf:square.and.arrow.up"
-              style={{ width: 19, height: 19 }}
-              tintColor={Colors.textSecondary}
-            />
-            <Text style={{ fontSize: 15, fontWeight: '500', color: Colors.textSecondary }}>
-              Share
-            </Text>
-          </Pressable>
-        </View>
-      </View>
     </View>
   );
 }

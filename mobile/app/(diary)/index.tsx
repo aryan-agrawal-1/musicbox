@@ -45,61 +45,54 @@ function DiaryRow({ entry }: { entry: ListeningHistory }) {
   });
 
   return (
-    <Link href={`/(diary)/track/${song.spotify_id}` as `/${string}`} asChild>
-      <Link.Trigger>
-        <Pressable style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+    <Link href={`/track/${song.id}` as `/${string}`} asChild>
+      <Pressable style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+          }}
+        >
           <View
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 12,
-              paddingHorizontal: 16,
-              paddingVertical: 10,
+              width: 48,
+              height: 48,
+              borderRadius: 8,
+              borderCurve: 'continuous',
+              overflow: 'hidden',
+              backgroundColor: Colors.surfaceHigh,
             }}
           >
-            <View
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 8,
-                borderCurve: 'continuous',
-                overflow: 'hidden',
-                backgroundColor: Colors.surfaceHigh,
-              }}
-            >
-              <Image
-                source={song.album_image ? { uri: song.album_image } : undefined}
-                style={{ width: 48, height: 48 }}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-            </View>
+            <Image
+              source={song.album_image ? { uri: song.album_image } : undefined}
+              style={{ width: 48, height: 48 }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          </View>
 
-            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-              <Text
-                style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
-                numberOfLines={1}
-              >
-                {song.name}
-              </Text>
-              <Text style={{ fontSize: 13, color: Colors.textSecondary }} numberOfLines={1}>
-                {song.artists.map(a => a.name).join(', ')}
-              </Text>
-            </View>
-
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
             <Text
-              style={{ fontSize: 12, color: Colors.textTertiary, fontVariant: ['tabular-nums'] }}
+              style={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }}
+              numberOfLines={1}
             >
-              {time}
+              {song.name}
+            </Text>
+            <Text style={{ fontSize: 13, color: Colors.textSecondary }} numberOfLines={1}>
+              {song.artists.map(a => a.name).join(', ')}
             </Text>
           </View>
-        </Pressable>
-      </Link.Trigger>
-      <Link.Menu>
-        <Link.MenuAction title="Go to Track" icon="music.note" />
-        <Link.MenuAction title="Go to Album" icon="square.stack" />
-        <Link.MenuAction title="Go to Artist" icon="person.crop.circle" />
-      </Link.Menu>
+
+          <Text
+            style={{ fontSize: 12, color: Colors.textTertiary, fontVariant: ['tabular-nums'] }}
+          >
+            {time}
+          </Text>
+        </View>
+      </Pressable>
     </Link>
   );
 }

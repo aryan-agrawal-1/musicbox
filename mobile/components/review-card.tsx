@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -21,6 +21,8 @@ export function ReviewCard({ review, type = 'album' }: ReviewCardProps) {
   const [isLiked, setIsLiked] = useState(review.is_liked);
   const [likesCount, setLikesCount] = useState(review.likes_count);
   const toggleLike = useToggleReviewLike(String(review.id), type);
+  const lastTapRef = useRef(0);
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function handleLike() {
     if (process.env.EXPO_OS === 'ios') {
@@ -37,9 +39,27 @@ export function ReviewCard({ review, type = 'album' }: ReviewCardProps) {
     }
   }
 
+  function handleCardPress() {
+    const now = Date.now();
+    const isDoubleTap = now - lastTapRef.current < 300;
+    lastTapRef.current = isDoubleTap ? 0 : now;
+
+    if (isDoubleTap) {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = null;
+      handleLike();
+    } else {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => {
+        navTimerRef.current = null;
+        router.push({ pathname: '/review/[id]', params: { id: String(review.id), type } });
+      }, 300);
+    }
+  }
+
   return (
     <Pressable
-      onPress={() => router.push({ pathname: '/review/[id]', params: { id: String(review.id), type } })}
+      onPress={handleCardPress}
       style={({ pressed }) => ({
         backgroundColor: Colors.surfaceElevated,
         borderRadius: 12,
@@ -65,6 +85,28 @@ export function ReviewCard({ review, type = 'album' }: ReviewCardProps) {
         <Text style={{ fontSize: 12, color: Colors.textTertiary }}>
           {formatRelativeTime(review.created_at)}
         </Text>
+      </View>
+
+      {/* Album / track info */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {review.album_image && (
+          <Image
+            source={{ uri: review.album_image }}
+            style={{ width: 36, height: 36, borderRadius: 5 }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: Colors.textPrimary }} numberOfLines={1}>
+            {type === 'song' ? (review as SongReview).song_name : review.album_name}
+          </Text>
+          {type === 'song' && (
+            <Text style={{ fontSize: 11, color: Colors.textTertiary }} numberOfLines={1}>
+              {review.album_name}
+            </Text>
+          )}
+        </View>
       </View>
 
       {/* Review excerpt — capped at 3 lines */}

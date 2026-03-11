@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useState, useRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -299,7 +299,10 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
   // song FK (integer id) for song activities
   const songNavId = (data.song ?? '') as number | string;
 
-  function handleCardPress() {
+  const lastTapRef = useRef(0);
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function navigate() {
     if (isReview && reviewId) {
       const reviewType = activity.activity_type === 'song_review' ? 'song' : 'album';
       router.push({ pathname: '/review/[id]', params: { id: String(reviewId), type: reviewType } });
@@ -307,6 +310,24 @@ export function ActivityCard({ activity, index = 0, profileUser, isProfileView =
       router.push(`/track/${songNavId}`);
     } else if (isRatingOrReview && albumNavId) {
       router.push(`/album/${albumNavId}`);
+    }
+  }
+
+  function handleCardPress() {
+    const now = Date.now();
+    const isDoubleTap = now - lastTapRef.current < 300;
+    lastTapRef.current = isDoubleTap ? 0 : now;
+
+    if (isDoubleTap && isReview) {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = null;
+      handleReviewLike();
+    } else {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => {
+        navTimerRef.current = null;
+        navigate();
+      }, 300);
     }
   }
 
