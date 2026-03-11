@@ -59,9 +59,9 @@ out/
 .expo-shared/
 web-build/
 
-# Native build output
-ios/
-android/
+# Native build output (anchored to mobile/ so local module ios/ dirs are not excluded)
+mobile/ios/
+mobile/android/
 *.jks
 *.p8
 *.p12
