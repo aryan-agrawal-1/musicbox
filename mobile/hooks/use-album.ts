@@ -41,3 +41,22 @@ export function useUserAlbumRating(id: number | string) {
     enabled: !!id,
   });
 }
+
+export function useUserAlbumReview(id: number | string) {
+  return useQuery({
+    queryKey: ['album', id, 'my-review'],
+    queryFn: async () => {
+      try {
+        const data = await apiFetch<PaginatedResponse<AlbumReview>>(
+          `/api/v1/reviews/albums/reviews/?album=${id}&user=me`
+        );
+        return data.results[0] ?? null;
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) return null;
+        throw e;
+      }
+    },
+    staleTime: 0,
+    enabled: !!id,
+  });
+}

@@ -1,9 +1,10 @@
+import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { Colors } from '@/constants/colors';
 
 
  // Shared Stack screenOptions used by all tab navigators and the shared stack.
  
-export const sharedStackOptions = {
+export const sharedStackOptions: NativeStackNavigationOptions = {
   headerTransparent: true,
   headerShadowVisible: false,
   headerLargeTitleShadowVisible: false,
@@ -14,11 +15,20 @@ export const sharedStackOptions = {
   contentStyle: { backgroundColor: Colors.background },
 };
 
-export const rateScreenOptions = {
+export const rateScreenOptions: NativeStackNavigationOptions = {
   headerShown: false,
   headerLargeTitle: false,
   presentation: 'formSheet',
   sheetGrabberVisible: true,
-  sheetAllowedDetents: [0.55, 1.0],
+  sheetAllowedDetents: [0.55, 1.0] as number[],
   contentStyle: { backgroundColor: 'transparent' },
-} as const;
+};
+
+export const sharePreviewScreenOptions: NativeStackNavigationOptions = {
+  headerShown: false,
+  headerLargeTitle: false,
+  presentation: 'formSheet',
+  sheetGrabberVisible: true,
+  sheetAllowedDetents: [0.68, 1.0] as number[],
+  contentStyle: { backgroundColor: 'transparent' },
+};

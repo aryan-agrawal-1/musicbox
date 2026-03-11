@@ -1,14 +1,29 @@
+import { use } from 'react';
 import { View, Text, ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  ZoomIn,
+  ZoomOut,
+} from 'react-native-reanimated';
 import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AuthContext } from '@/contexts/auth-context';
+import { sharePreviewStore } from '@/lib/share-preview-store';
+import { useSharePrompt } from '@/hooks/use-share-prompt';
+
 import { Colors } from '@/constants/colors';
-import { useTrack, useSongReviews, useUserSongRating } from '@/hooks/use-track';
+import {
+  useTrack,
+  useSongReviews,
+  useUserSongRating,
+  useUserSongReview,
+} from '@/hooks/use-track';
 import { StarRating } from '@/components/star-rating';
 import { ReviewCard } from '@/components/review-card';
 import { SectionHeader } from '@/components/section-header';
@@ -34,9 +49,52 @@ export default function TrackScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { user } = use(AuthContext);
   const { data: track, isLoading, error, refetch } = useTrack(id);
   const { data: reviewsData } = useSongReviews(id);
   const { data: userRating } = useUserSongRating(id);
+  const { data: userReview } = useUserSongReview(id);
+
+  const {
+    sharePrompt,
+    shareReviewText,
+    fillStyle,
+    hasStartedPromptFillRef,
+    resetFill,
+    startPromptAnimation,
+  } = useSharePrompt(id, 'track');
+
+  function handleRateButtonPress() {
+    if (process.env.EXPO_OS === 'ios') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    if (sharePrompt) {
+      resetFill();
+      openShareSheet();
+      return;
+    }
+    router.push({ pathname: '/rate', params: { trackId: id, type: 'track' } });
+  }
+
+  function openShareSheet() {
+    if (!track || !userRating || !user) return;
+
+    const shareId = sharePreviewStore.set({
+      variant: 'review',
+      data: {
+        songOrAlbumName: track.name,
+        artistName: track.artists?.[0]?.name ?? '',
+        albumImage: track.album_image,
+        ratingValue: userRating.rating,
+        reviewText: shareReviewText ?? userReview?.content ?? '',
+        username: user.username,
+        avatarUrl: user.avatar_url,
+        type: 'song',
+      },
+    });
+
+    router.push({ pathname: '/share-preview', params: { shareId } });
+  }
 
   const artSize = 240;
 
@@ -284,19 +342,21 @@ export default function TrackScreen() {
           bottom: insets.bottom + 16,
           left: 16,
           right: 16,
+          flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
         }}
       >
         <GlassView isInteractive style={{ borderRadius: 50, overflow: 'hidden' }}>
           <Pressable
-            onPress={() => {
-              if (process.env.EXPO_OS === 'ios') {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onPress={handleRateButtonPress}
+            onLayout={(event) => {
+              const nextWidth = event.nativeEvent.layout.width;
+              if (sharePrompt && !hasStartedPromptFillRef.current && nextWidth > 0) {
+                hasStartedPromptFillRef.current = true;
+                startPromptAnimation(nextWidth);
               }
-              router.push({
-                pathname: '/rate',
-                params: { trackId: id, type: 'track' },
-              });
             }}
             style={({ pressed }) => ({
               flexDirection: 'row',
@@ -307,8 +367,28 @@ export default function TrackScreen() {
               opacity: pressed ? 0.85 : 1,
             })}
           >
-            {userRating ? (
-              <StarRating value={userRating.rating} size={18} />
+            {sharePrompt ? (
+              <>
+                <Animated.View
+                  style={[
+                    {
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      left: 0,
+                      backgroundColor: Colors.accent,
+                    },
+                    fillStyle,
+                  ]}
+                />
+                <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.textPrimary, zIndex: 1 }}>
+                  Share your review
+                </Text>
+              </>
+            ) : userRating ? (
+              <Animated.View entering={FadeIn.duration(260)}>
+                <StarRating value={userRating.rating} size={18} />
+              </Animated.View>
             ) : (
               <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.textPrimary }}>
                 Rate this Track
@@ -316,7 +396,40 @@ export default function TrackScreen() {
             )}
           </Pressable>
         </GlassView>
+
+        {userRating && !sharePrompt && (
+          <Animated.View
+            entering={ZoomIn.duration(280)}
+            exiting={ZoomOut.duration(240)}
+          >
+            <GlassView isInteractive style={{ borderRadius: 30, overflow: 'hidden' }}>
+              <Pressable
+                onPress={() => {
+                  if (process.env.EXPO_OS === 'ios') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  resetFill();
+                  openShareSheet();
+                }}
+                style={({ pressed }) => ({
+                  width: 52,
+                  height: 52,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Image
+                  source="sf:square.and.arrow.up"
+                  style={{ width: 20, height: 20 }}
+                  tintColor={Colors.textPrimary}
+                />
+              </Pressable>
+            </GlassView>
+          </Animated.View>
+        )}
       </Animated.View>
+
     </>
   );
 }

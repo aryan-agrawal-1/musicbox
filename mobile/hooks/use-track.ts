@@ -41,3 +41,22 @@ export function useUserSongRating(id: number | string) {
     enabled: !!id,
   });
 }
+
+export function useUserSongReview(id: number | string) {
+  return useQuery({
+    queryKey: ['track', id, 'my-review'],
+    queryFn: async () => {
+      try {
+        const data = await apiFetch<PaginatedResponse<SongReview>>(
+          `/api/v1/reviews/songs/reviews/?song=${id}&user=me`
+        );
+        return data.results[0] ?? null;
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) return null;
+        throw e;
+      }
+    },
+    staleTime: 0,
+    enabled: !!id,
+  });
+}

@@ -1,4 +1,4 @@
-import { use, useState, useEffect, useRef } from 'react';
+import { use, useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useFocusEffect, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -39,11 +39,13 @@ import { apiFetch, ApiError } from '@/lib/api';
 import { tokenStore } from '@/lib/auth';
 import { onboardingStore } from '@/lib/onboarding-store';
 import { pendingAppleAuth } from '@/lib/pending-apple-auth';
+import { sharePreviewStore } from '@/lib/share-preview-store';
 import { syncAppleMusicHistory } from '@/lib/apple-music';
 import { useAppleMusicConnect } from '@/hooks/use-apple-music-connect';
 import { AppleMusicConnectPanel } from '@/components/apple-music-connect-panel';
 import { Colors } from '@/constants/colors';
 import type { AuthTokens, Song } from '@/types/api';
+import type { OnboardingTrackData } from '@/types/share';
 
 async function fetchDeezerPreview(artist: string, track: string): Promise<string | null> {
   if (process.env.EXPO_OS === 'web') return null;
@@ -1348,6 +1350,8 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
   const [ratings, setRatings] = useState<Record<number, number>>({});
   const [isDone, setIsDone] = useState(false);
   const [currentPlayingId, setCurrentPlayingId] = useState<number | null>(null);
+  const pendingFinishAfterShareRef = useRef(false);
+  const hasLeftForShareRef = useRef(false);
 
   // URL cache — ref so reads in async handlers are always fresh
   const previewUrls = useRef<Record<number, string>>({});
@@ -1387,6 +1391,20 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useFocusEffect(useCallback(() => {
+    if (pendingFinishAfterShareRef.current && hasLeftForShareRef.current) {
+      pendingFinishAfterShareRef.current = false;
+      hasLeftForShareRef.current = false;
+      onDone();
+    }
+
+    return () => {
+      if (pendingFinishAfterShareRef.current) {
+        hasLeftForShareRef.current = true;
+      }
+    };
+  }, [onDone]));
+
   async function switchToSong(item: Song) {
     if (isSwitching.current) return;
     isSwitching.current = true;
@@ -1425,7 +1443,23 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
   async function handleDone() {
     setIsDone(true);
     await fadeOut(player);
-    onDone();
+    if (ratedCount > 0) {
+      const trackData: OnboardingTrackData[] = Object.entries(ratings)
+        .slice(0, 9)
+        .map(([idStr, rating]) => {
+          const song = tracks.find(t => t.id === Number(idStr));
+          return { songName: song?.name ?? '', albumImage: song?.album_image ?? null, rating };
+        });
+      const shareId = sharePreviewStore.set({
+        variant: 'onboarding',
+        tracks: trackData,
+      });
+      pendingFinishAfterShareRef.current = true;
+      hasLeftForShareRef.current = false;
+      router.push({ pathname: '/(auth)/share-preview', params: { shareId } });
+    } else {
+      onDone();
+    }
   }
 
   const ratedCount = Object.keys(ratings).length;
@@ -1501,6 +1535,7 @@ function TracksStep({ tracks, onDone }: TracksStepProps) {
           )}
         </Pressable>
       </Animated.View>
+
     </View>
   );
 }

@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { sharePreviewScreenOptions } from '@/lib/navigation';
 
 export default function AuthLayout() {
   return (
@@ -16,6 +17,7 @@ export default function AuthLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen name="share-preview" options={sharePreviewScreenOptions} />
     </Stack>
   );
 }

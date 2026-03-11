@@ -11,17 +11,25 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Colors } from '@/constants/colors';
 import { StarRating, getRatingLabel } from '@/components/star-rating';
-import { useAlbum, useUserAlbumRating } from '@/hooks/use-album';
-import { useTrack, useUserSongRating } from '@/hooks/use-track';
-import { apiFetch, ApiError } from '@/lib/api';
+import { shareSignal } from '@/lib/share-signal';
+import {
+  useAlbum,
+  useUserAlbumRating,
+  useUserAlbumReview,
+} from '@/hooks/use-album';
+import {
+  useTrack,
+  useUserSongRating,
+  useUserSongReview,
+} from '@/hooks/use-track';
+import { apiFetch } from '@/lib/api';
 import type {
   AlbumReview,
   AlbumRating,
-  PaginatedResponse,
   SongReview,
   SongRating,
 } from '@/types/api';
@@ -65,44 +73,12 @@ export default function RateSheet() {
   const { data: existingSongRating } = useUserSongRating(
     mode === 'track' && trackId ? trackId : ''
   );
-
-  const { data: existingAlbumReview } = useQuery({
-    queryKey: ['album', albumId, 'my-review'],
-    queryFn: async () => {
-      const id = albumId;
-      if (!id) return null;
-      try {
-        const res = await apiFetch<PaginatedResponse<AlbumReview>>(
-          `/api/v1/reviews/albums/reviews/?album=${id}&user=me&limit=1`
-        );
-        return res.results[0] ?? null;
-      } catch (e) {
-        if (e instanceof ApiError && e.status === 404) return null;
-        throw e;
-      }
-    },
-    enabled: mode === 'album' && !!albumId,
-    staleTime: 0,
-  });
-
-  const { data: existingSongReview } = useQuery({
-    queryKey: ['track', trackId, 'my-review'],
-    queryFn: async () => {
-      const id = trackId;
-      if (!id) return null;
-      try {
-        const res = await apiFetch<PaginatedResponse<SongReview>>(
-          `/api/v1/reviews/songs/reviews/?song=${id}&user=me&limit=1`
-        );
-        return res.results[0] ?? null;
-      } catch (e) {
-        if (e instanceof ApiError && e.status === 404) return null;
-        throw e;
-      }
-    },
-    enabled: mode === 'track' && !!trackId,
-    staleTime: 0,
-  });
+  const { data: existingAlbumReview } = useUserAlbumReview(
+    mode === 'album' && albumId ? albumId : ''
+  );
+  const { data: existingSongReview } = useUserSongReview(
+    mode === 'track' && trackId ? trackId : ''
+  );
 
   const existingRating: AlbumRating | SongRating | null =
     mode === 'album' ? existingAlbumRating ?? null : existingSongRating ?? null;
@@ -188,6 +164,7 @@ export default function RateSheet() {
         }
 
         queryClient.invalidateQueries({ queryKey: ['album', spotifyId] });
+        queryClient.invalidateQueries({ queryKey: ['album', spotifyId, 'my-review'] });
       } else {
         const spotifyId = trackId!;
         const songPk = track!.id;
@@ -230,9 +207,18 @@ export default function RateSheet() {
         }
 
         queryClient.invalidateQueries({ queryKey: ['track', spotifyId] });
+        queryClient.invalidateQueries({ queryKey: ['track', spotifyId, 'my-review'] });
       }
     },
     onSuccess: () => {
+      const signalId = albumId ?? trackId;
+      if (signalId && mode !== 'unknown') {
+        shareSignal.set({
+          id: signalId,
+          type: mode,
+          reviewText: reviewText.trim(),
+        });
+      }
       router.back();
     },
   });
@@ -246,11 +232,13 @@ export default function RateSheet() {
           method: 'DELETE',
         });
         queryClient.invalidateQueries({ queryKey: ['album', albumId!] });
+        queryClient.invalidateQueries({ queryKey: ['album', albumId!, 'my-review'] });
       } else {
         await apiFetch(`/api/v1/reviews/songs/ratings/${existingRating.id}/`, {
           method: 'DELETE',
         });
         queryClient.invalidateQueries({ queryKey: ['track', trackId!] });
+        queryClient.invalidateQueries({ queryKey: ['track', trackId!, 'my-review'] });
       }
     },
     onSuccess: () => {

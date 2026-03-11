@@ -13,6 +13,9 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { sharePreviewStore } from '@/lib/share-preview-store';
+import type { ReviewShareData } from '@/types/share';
+
 import { Colors } from '@/constants/colors';
 import { AvatarImage } from '@/components/avatar-image';
 import { StarRating } from '@/components/star-rating';
@@ -88,6 +91,15 @@ export default function ReviewScreen() {
       withSpring(1.0, { damping: 20, stiffness: 400 }),
     );
     toggleReviewLike.mutate({ liked: review.is_liked });
+  }
+
+  function openShareSheet(data: ReviewShareData) {
+    const shareId = sharePreviewStore.set({
+      variant: 'review',
+      data,
+    });
+
+    router.push({ pathname: '/share-preview', params: { shareId } });
   }
 
   // ─── Loading skeleton ──────────────────────────────────────────────────────
@@ -331,6 +343,41 @@ export default function ReviewScreen() {
             />
             <Text style={{ fontSize: 15, fontWeight: '500', color: Colors.textSecondary }}>
               {commentsCount > 0 ? commentsCount : 'Comment'}
+            </Text>
+          </Pressable>
+
+          <View style={{ width: 1, backgroundColor: Colors.separator, height: 24, alignSelf: 'center' }} />
+
+          {/* Share */}
+          <Pressable
+            onPress={() =>
+              openShareSheet({
+                songOrAlbumName: mediaName,
+                artistName: review.album_name,
+                albumImage: review.album_image,
+                ratingValue: Number(review.rating_value ?? 0),
+                reviewText: review.content ?? '',
+                username: review.user.username,
+                avatarUrl: review.user.avatar_url ?? null,
+                type: reviewType,
+              } satisfies ReviewShareData)
+            }
+            style={({ pressed }) => ({
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              opacity: pressed ? 0.65 : 1,
+            })}
+          >
+            <Image
+              source="sf:square.and.arrow.up"
+              style={{ width: 19, height: 19 }}
+              tintColor={Colors.textSecondary}
+            />
+            <Text style={{ fontSize: 15, fontWeight: '500', color: Colors.textSecondary }}>
+              Share
             </Text>
           </Pressable>
         </View>

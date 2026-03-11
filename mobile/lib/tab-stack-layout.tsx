@@ -1,5 +1,9 @@
 import { Stack } from 'expo-router';
-import { sharedStackOptions, rateScreenOptions } from '@/lib/navigation';
+import {
+  sharedStackOptions,
+  rateScreenOptions,
+  sharePreviewScreenOptions,
+} from '@/lib/navigation';
 
 type TabStackLayoutProps = {
   indexTitle: string;
@@ -27,6 +31,7 @@ export default function TabStackLayout({ indexTitle, children }: TabStackLayoutP
         }}
       />
       <Stack.Screen name="rate" options={rateScreenOptions} />
+      <Stack.Screen name="share-preview" options={sharePreviewScreenOptions} />
     </Stack>
   );
 }
