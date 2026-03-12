@@ -65,6 +65,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     is_apple_music_connected = serializers.BooleanField(read_only=True)
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
+    total_likes_received = serializers.SerializerMethodField()
     spotify_petition_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -75,7 +76,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'total_albums_rated', 'total_songs_rated', 'total_reviews',
             'is_spotify_connected', 'spotify_user_id', 'spotify_connected_at',
             'is_apple_music_connected', 'apple_music_connected_at',
-            'followers_count', 'following_count',
+            'followers_count', 'following_count', 'total_likes_received',
             'spotify_petition_signed', 'spotify_petition_count',
             'created_at', 'username_last_changed'
         ]
@@ -84,7 +85,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'spotify_user_id', 'spotify_connected_at', 'created_at',
             'is_spotify_connected', 'is_apple_music_connected',
             'apple_music_connected_at',
-            'followers_count', 'following_count',
+            'followers_count', 'following_count', 'total_likes_received',
             'username_last_changed'
         ]
 
@@ -95,6 +96,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.IntegerField)
     def get_following_count(self, obj) -> int:
         return obj.following.count()
+
+    @extend_schema_field(serializers.IntegerField)
+    def get_total_likes_received(self, obj) -> int:
+        from reviews.models import AlbumReviewLike, SongReviewLike
+        album_likes = AlbumReviewLike.objects.filter(review__user=obj).count()
+        song_likes = SongReviewLike.objects.filter(review__user=obj).count()
+        return album_likes + song_likes
 
     @extend_schema_field(serializers.IntegerField)
     def get_spotify_petition_count(self, obj) -> int:

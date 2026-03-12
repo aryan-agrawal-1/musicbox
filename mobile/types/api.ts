@@ -20,6 +20,7 @@ export interface User {
   total_albums_rated: number;
   total_songs_rated: number;
   total_reviews: number;
+  total_likes_received: number;
 }
 
 export interface Artist {

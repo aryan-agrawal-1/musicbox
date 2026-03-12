@@ -248,13 +248,13 @@ function ProfileHero({
             hitSlop={4}
             style={({ pressed }) => ({
               alignItems: 'center',
-              paddingHorizontal: 16,
+              paddingHorizontal: 12,
               opacity: pressed ? 0.7 : 1,
             })}
           >
             <Text
               style={{
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: '700',
                 color: Colors.textPrimary,
                 fontVariant: ['tabular-nums'],
@@ -264,7 +264,7 @@ function ProfileHero({
             </Text>
             <Text
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: '600',
                 letterSpacing: 0.5,
                 color: Colors.textTertiary,
@@ -281,13 +281,13 @@ function ProfileHero({
             hitSlop={4}
             style={({ pressed }) => ({
               alignItems: 'center',
-              paddingHorizontal: 16,
+              paddingHorizontal: 12,
               opacity: pressed ? 0.7 : 1,
             })}
           >
             <Text
               style={{
-                fontSize: 18,
+                fontSize: 15,
                 fontWeight: '700',
                 color: Colors.textPrimary,
                 fontVariant: ['tabular-nums'],
@@ -297,7 +297,7 @@ function ProfileHero({
             </Text>
             <Text
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: '600',
                 letterSpacing: 0.5,
                 color: Colors.textTertiary,
@@ -309,10 +309,10 @@ function ProfileHero({
 
           <View style={{ width: 1, height: 28, backgroundColor: Colors.separator }} />
 
-          <View style={{ alignItems: 'center', paddingHorizontal: 16 }}>
+          <View style={{ alignItems: 'center', paddingHorizontal: 12 }}>
             <Text
               style={{
-                fontSize: 18,
+                fontSize: 15,
                 fontWeight: '700',
                 color: Colors.textPrimary,
                 fontVariant: ['tabular-nums'],
@@ -322,13 +322,38 @@ function ProfileHero({
             </Text>
             <Text
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: '600',
                 letterSpacing: 0.5,
                 color: Colors.textTertiary,
               }}
             >
               RATINGS
+            </Text>
+          </View>
+
+          <View style={{ width: 1, height: 28, backgroundColor: Colors.separator }} />
+
+          <View style={{ alignItems: 'center', paddingHorizontal: 12 }}>
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '700',
+                color: Colors.textPrimary,
+                fontVariant: ['tabular-nums'],
+              }}
+            >
+              {formatCount(user.total_likes_received)}
+            </Text>
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: '600',
+                letterSpacing: 0.5,
+                color: Colors.textTertiary,
+              }}
+            >
+              LIKES
             </Text>
           </View>
         </Animated.View>
@@ -451,6 +476,7 @@ export default function UserScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={Colors.accent}
+            progressViewOffset={insets.top}
           />
         }
       >

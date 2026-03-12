@@ -228,13 +228,13 @@ function OwnProfileHero({
             hitSlop={4}
             style={({ pressed }) => ({
               alignItems: 'center',
-              paddingHorizontal: 16,
+              paddingHorizontal: 12,
               opacity: pressed ? 0.7 : 1,
             })}
           >
             <Text
               style={{
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: '700',
                 color: Colors.textPrimary,
                 fontVariant: ['tabular-nums'],
@@ -244,7 +244,7 @@ function OwnProfileHero({
             </Text>
             <Text
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: '600',
                 letterSpacing: 0.5,
                 color: Colors.textTertiary,
@@ -261,13 +261,13 @@ function OwnProfileHero({
             hitSlop={4}
             style={({ pressed }) => ({
               alignItems: 'center',
-              paddingHorizontal: 16,
+              paddingHorizontal: 12,
               opacity: pressed ? 0.7 : 1,
             })}
           >
             <Text
               style={{
-                fontSize: 18,
+                fontSize: 15,
                 fontWeight: '700',
                 color: Colors.textPrimary,
                 fontVariant: ['tabular-nums'],
@@ -277,7 +277,7 @@ function OwnProfileHero({
             </Text>
             <Text
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: '600',
                 letterSpacing: 0.5,
                 color: Colors.textTertiary,
@@ -289,10 +289,10 @@ function OwnProfileHero({
 
           <View style={{ width: 1, height: 28, backgroundColor: Colors.separator }} />
 
-          <View style={{ alignItems: 'center', paddingHorizontal: 16 }}>
+          <View style={{ alignItems: 'center', paddingHorizontal: 12 }}>
             <Text
               style={{
-                fontSize: 18,
+                fontSize: 15,
                 fontWeight: '700',
                 color: Colors.textPrimary,
                 fontVariant: ['tabular-nums'],
@@ -302,13 +302,38 @@ function OwnProfileHero({
             </Text>
             <Text
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: '600',
                 letterSpacing: 0.5,
                 color: Colors.textTertiary,
               }}
             >
               RATINGS
+            </Text>
+          </View>
+
+          <View style={{ width: 1, height: 28, backgroundColor: Colors.separator }} />
+
+          <View style={{ alignItems: 'center', paddingHorizontal: 12 }}>
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '700',
+                color: Colors.textPrimary,
+                fontVariant: ['tabular-nums'],
+              }}
+            >
+              {formatCount(user.total_likes_received ?? 0)}
+            </Text>
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: '600',
+                letterSpacing: 0.5,
+                color: Colors.textTertiary,
+              }}
+            >
+              LIKES
             </Text>
           </View>
         </Animated.View>
