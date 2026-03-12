@@ -79,19 +79,29 @@ type NotifData = {
   review_type?: 'album' | 'song';
 };
 
+const VALID_NOTIF_TYPES = new Set([
+  'new_follower', 'review_liked', 'comment_on_review', 'reply_to_comment', 'comment_liked',
+]);
+const VALID_REVIEW_TYPES = new Set(['album', 'song']);
+const USERNAME_RE = /^[a-zA-Z0-9_]{1,30}$/;
+const REVIEW_ID_RE = /^\d+$/;
+
 export function handleNotificationTap(notification: Notifications.Notification): void {
   const data = notification.request.content.data as NotifData;
-  if (!data?.type) return;
+  if (!data?.type || !VALID_NOTIF_TYPES.has(data.type)) return;
 
   switch (data.type) {
     case 'new_follower':
-      if (data.username) {
+      if (data.username && USERNAME_RE.test(data.username)) {
         router.push(`/(shared)/user/${data.username}` as never);
       }
       break;
 
     case 'review_liked':
-      if (data.review_id && data.review_type) {
+      if (
+        data.review_id && REVIEW_ID_RE.test(String(data.review_id)) &&
+        data.review_type && VALID_REVIEW_TYPES.has(data.review_type)
+      ) {
         router.push({
           pathname: '/(shared)/review/[id]',
           params: { id: data.review_id, type: data.review_type },
@@ -102,7 +112,10 @@ export function handleNotificationTap(notification: Notifications.Notification):
     case 'comment_on_review':
     case 'reply_to_comment':
     case 'comment_liked':
-      if (data.review_id && data.review_type) {
+      if (
+        data.review_id && REVIEW_ID_RE.test(String(data.review_id)) &&
+        data.review_type && VALID_REVIEW_TYPES.has(data.review_type)
+      ) {
         router.push({
           pathname: '/(shared)/review/comments',
           params: { reviewId: data.review_id, type: data.review_type },

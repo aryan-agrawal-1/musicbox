@@ -73,15 +73,25 @@ class SearchView(APIView):
     """
     permission_classes = [AllowAny]
 
+    _VALID_SEARCH_TYPES = {'album', 'track', 'artist'}
+
     def get(self, request):
         query = request.query_params.get('q', '').strip()
         if not query:
             return Response({'error': 'Query parameter "q" is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(query) > 200:
+            return Response({'error': 'Query too long.'}, status=status.HTTP_400_BAD_REQUEST)
 
         types_param = request.query_params.get('type', 'album,track,artist')
-        types = [t.strip() for t in types_param.split(',')]
-        limit = min(int(request.query_params.get('limit', 10)), 10)
-        offset = int(request.query_params.get('offset', 0))
+        types = [t.strip() for t in types_param.split(',') if t.strip() in self._VALID_SEARCH_TYPES]
+        if not types:
+            types = ['album', 'track', 'artist']
+
+        try:
+            limit = min(int(request.query_params.get('limit', 10)), 10)
+            offset = int(request.query_params.get('offset', 0))
+        except ValueError:
+            return Response({'error': 'limit and offset must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
 
         service = SpotifyService()
         raw = service.search(query, types=types, limit=limit, offset=offset)

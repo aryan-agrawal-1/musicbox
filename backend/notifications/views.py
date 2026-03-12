@@ -13,9 +13,10 @@ class DeviceTokenView(generics.GenericAPIView):
         token = request.data.get('token')
         if not token:
             return Response({'error': 'token is required'}, status=status.HTTP_400_BAD_REQUEST)
+        # Scope lookup to the requesting user so one user cannot claim another's token.
         obj, created = DeviceToken.objects.update_or_create(
-            token=token,
-            defaults={'user': request.user},
+            user=request.user,
+            defaults={'token': token},
         )
         return Response(
             DeviceTokenSerializer(obj).data,

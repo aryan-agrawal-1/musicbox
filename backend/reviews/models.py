@@ -66,7 +66,7 @@ class AlbumReview(models.Model):
     album = models.ForeignKey(Album, related_name='reviews', on_delete=models.CASCADE)
     rating = models.ForeignKey(AlbumRating, related_name='review', on_delete=models.CASCADE, null=True, blank=True)
 
-    content = models.TextField()
+    content = models.TextField(max_length=5000)
     likes_count = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -92,7 +92,7 @@ class SongReview(models.Model):
     song = models.ForeignKey(Song, related_name='reviews', on_delete=models.CASCADE)
     rating = models.ForeignKey(SongRating, related_name='review', on_delete=models.CASCADE, null=True, blank=True)
 
-    content = models.TextField()
+    content = models.TextField(max_length=5000)
     likes_count = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -153,7 +153,7 @@ class AlbumReviewComment(models.Model):
         on_delete=models.CASCADE,
         related_name='replies'
     )
-    content = models.TextField()
+    content = models.TextField(max_length=1000)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -182,7 +182,7 @@ class SongReviewComment(models.Model):
         on_delete=models.CASCADE,
         related_name='replies'
     )
-    content = models.TextField()
+    content = models.TextField(max_length=1000)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -2,9 +2,14 @@ from rest_framework import status, generics, serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 from .apple_auth import verify_apple_identity_token, AppleTokenError
 from django.db.models import Q, Count
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
+
+
+class AuthRateThrottle(AnonRateThrottle):
+    rate = '10/minute'
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.conf import settings
@@ -53,6 +58,7 @@ class UserRegistrationView(generics.CreateAPIView):
     """Register a new user"""
     queryset = User.objects.all()
     permission_classes = [AllowAny]
+    throttle_classes = [AuthRateThrottle]
     serializer_class = UserRegistrationSerializer
 
 
@@ -82,6 +88,7 @@ class CurrentUserView(generics.RetrieveUpdateDestroyAPIView):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([AuthRateThrottle])
 def change_password(request):
     """Change the authenticated user's password"""
     serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
@@ -201,6 +208,9 @@ def get_avatar_upload_url(request):
 
 # Spotify OAuth Views
 
+_ALLOWED_REDIRECT_SCHEMES = {'muze', 'muzedebug', 'exp+musicbox'}
+
+
 @extend_schema(
     responses={
         200: inline_serializer(
@@ -215,6 +225,8 @@ def get_avatar_upload_url(request):
 def spotify_connect(request):
     """Initiate Spotify OAuth flow"""
     redirect_scheme = request.GET.get('redirect_scheme')
+    if redirect_scheme not in _ALLOWED_REDIRECT_SCHEMES:
+        redirect_scheme = None
     state = encode_state(request.user.id, redirect_scheme=redirect_scheme)
 
     auth_manager = SpotifyOAuth(
@@ -347,6 +359,7 @@ class AppleSignInView(generics.GenericAPIView):
     Returns (new user):      { is_new_user: true, apple_uid, email, full_name }
     """
     permission_classes = [AllowAny]
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         identity_token = request.data.get("identity_token", "").strip()
@@ -402,6 +415,7 @@ class AppleRegisterView(generics.GenericAPIView):
     Returns: { access, refresh }
     """
     permission_classes = [AllowAny]
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         import re
@@ -491,7 +505,7 @@ def apple_music_connect(request):
     user.apple_music_connected_at = timezone.now()
     user.save(update_fields=['apple_music_user_token', 'apple_music_connected_at'])
 
-    return Response(UserProfileSerializer(user).data)
+    return Response(UserProfileSerializer(user, context={'request': request}).data)
 
 
 @api_view(['POST'])

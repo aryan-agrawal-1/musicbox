@@ -25,16 +25,16 @@ class UserSerializer(serializers.ModelSerializer):
             'spotify_petition_signed', 'spotify_petition_count',
             'created_at'
         ]
-
-    @extend_schema_field(serializers.IntegerField)
-    def get_spotify_petition_count(self, obj) -> int:
-        return User.objects.filter(spotify_petition_signed=True).count()
         read_only_fields = [
             'id', 'total_albums_rated', 'total_songs_rated', 'total_reviews',
             'spotify_user_id', 'spotify_connected_at',
             'is_apple_music_connected', 'apple_music_connected_at',
             'created_at'
         ]
+
+    @extend_schema_field(serializers.IntegerField)
+    def get_spotify_petition_count(self, obj) -> int:
+        return User.objects.filter(spotify_petition_signed=True).count()
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -107,6 +107,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.IntegerField)
     def get_spotify_petition_count(self, obj) -> int:
         return User.objects.filter(spotify_petition_signed=True).count()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        # Only expose email to the profile owner
+        if not request or not request.user.is_authenticated or request.user.pk != instance.pk:
+            data.pop('email', None)
+        return data
 
     def validate_username(self, value):
         instance = self.instance
