@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --mx-bg: #0B0B0B;
+  --mx-surface: #141414;
+  --mx-surface-elevated: #1C1C1E;
+  --mx-surface-high: #242428;
+  --mx-accent: #BF5AF2;
+  --mx-accent-dim: rgba(191, 90, 242, 0.15);
+  --mx-text-primary: #FFFFFF;
+  --mx-text-secondary: #ABABAB;
+  --mx-text-tertiary: #5C5C60;
+  --mx-separator: rgba(255, 255, 255, 0.07);
+  --mx-destructive: #FF3B30;
+  --mx-positive: #34C759;
+  --mx-spotify-green: #1DB954;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--mx-bg);
+  color: var(--mx-text-primary);
+}
+
+::selection {
+  background: rgba(191, 90, 242, 0.35);
+}
+
+/* Lightweight grain texture (data-uri SVG). */
+.mx-noise {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27320%27%20height%3D%27320%27%20viewBox%3D%270%200%20320%20320%27%3E%3Cfilter%20id%3D%27n%27%3E%3CfeTurbulence%20type%3D%27fractalNoise%27%20baseFrequency%3D%270.9%27%20numOctaves%3D%273%27%20stitchTiles%3D%27stitch%27/%3E%3C/filter%3E%3Crect%20width%3D%27320%27%20height%3D%27320%27%20filter%3D%27url(%23n)%27%20opacity%3D%270.42%27/%3E%3C/svg%3E");
+  background-size: 320px 320px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
