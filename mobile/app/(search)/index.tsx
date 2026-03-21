@@ -239,8 +239,13 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  const { data: searchData, isLoading: searchLoading } = useSearch(debouncedQuery);
-  const { data: userResults, isLoading: userLoading } = useUserSearch(debouncedQuery);
+  const {
+    data: searchData,
+    isMusicInitialLoading,
+    isMusicSettled,
+    isFetchingSpotifyFill,
+  } = useSearch(debouncedQuery);
+  const { data: userResults, isPending: userPending } = useUserSearch(debouncedQuery);
   const { data: popularData, isLoading: popularLoading, error: popularError, refetch: refetchPopular } = usePopularAlbums();
   const { data: popularArtistsData, isLoading: artistsLoading } = usePopularArtists();
   const { data: popularUsersData, isLoading: usersLoading } = usePopularUsers();
@@ -286,12 +291,21 @@ export default function SearchScreen() {
 
   const isSearchActive = debouncedQuery.length >= 2;
 
-  const isLoading = searchLoading || userLoading;
   const activeSegmentEmpty =
     (segment === 0 && albums.length === 0) ||
     (segment === 1 && tracks.length === 0) ||
     (segment === 2 && artists.length === 0) ||
     (segment === 3 && users.length === 0);
+
+  const showSearchSkeleton =
+    isSearchActive &&
+    (segment === 3
+      ? userPending && userResults === undefined
+      : isMusicInitialLoading && !searchData);
+
+  const showNoResults =
+    activeSegmentEmpty &&
+    (segment === 3 ? !userPending : isMusicSettled);
 
   return (
     <>
@@ -331,11 +345,23 @@ export default function SearchScreen() {
               fontStyle={{ color: Colors.textSecondary }}
               activeFontStyle={{ color: Colors.textPrimary, fontWeight: '600' }}
             />
+            {isFetchingSpotifyFill ? (
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: Colors.textTertiary,
+                  paddingTop: 6,
+                  textAlign: 'center',
+                }}
+              >
+                Searching full catalog…
+              </Text>
+            ) : null}
           </View>
 
-          {isLoading && !searchData && !userResults ? (
+          {showSearchSkeleton ? (
             <SearchResultsSkeleton />
-          ) : activeSegmentEmpty && !isLoading ? (
+          ) : showNoResults ? (
             <NoResults query={debouncedQuery} />
           ) : (
             <>

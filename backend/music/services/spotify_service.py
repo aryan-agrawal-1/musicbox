@@ -4,6 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import datetime, timedelta
 from music.models import Artist, Album, Song, ListeningHistory
+from music.services.catalog_matcher import CatalogMatcher
 
 
 class SpotifyService:
@@ -12,6 +13,7 @@ class SpotifyService:
     def __init__(self, user=None):
         """Initialize Spotify client with user or app credentials"""
         self.user = user
+        self.matcher = CatalogMatcher()
         if user and user.spotify_access_token:
             self.client = self._get_user_client(user)
         else:
@@ -51,70 +53,75 @@ class SpotifyService:
 
     def get_or_create_artist(self, spotify_id):
         """Get artist from DB or fetch from Spotify API and create"""
-        try:
-            return Artist.objects.get(spotify_id=spotify_id)
-        except Artist.DoesNotExist:
-            artist_data = self.client.artist(spotify_id)
-            return Artist.objects.create(
-                spotify_id=artist_data['id'],
-                name=artist_data['name'],
-                image_url=artist_data['images'][0]['url'] if artist_data.get('images') else None,
-                genres=artist_data.get('genres', []),
-            )
+        artist = Artist.objects.filter(spotify_id=spotify_id).first()
+        if artist:
+            return artist
+
+        artist_data = self.client.artist(spotify_id)
+        return self.get_or_create_artist_from_data(artist_data)
+
+    def get_or_create_artist_from_data(self, artist_data):
+        """Resolve an artist from Spotify payload already in memory."""
+        return self.matcher.resolve_artist(
+            spotify_id=artist_data.get('id'),
+            name=artist_data.get('name'),
+            image_url=(artist_data.get('images') or [{}])[0].get('url'),
+            genres=artist_data.get('genres', []),
+        )
 
     def get_or_create_album(self, spotify_id):
         """Get album from DB or fetch from Spotify API and create"""
-        try:
-            return Album.objects.get(spotify_id=spotify_id)
-        except Album.DoesNotExist:
-            album_data = self.client.album(spotify_id)
-
-            # Create artists first
-            artists = []
-            for artist_data in album_data['artists']:
-                artist = self.get_or_create_artist(artist_data['id'])
-                artists.append(artist)
-
-            # Create album
-            album = Album.objects.create(
-                spotify_id=album_data['id'],
-                name=album_data['name'],
-                album_type=album_data['album_type'],
-                release_date=album_data['release_date'],
-                total_tracks=album_data['total_tracks'],
-                image_url=album_data['images'][0]['url'] if album_data.get('images') else None,
-            )
-            album.artists.set(artists)
-
-            # Create songs
-            for track in album_data['tracks']['items']:
-                self._create_song_from_track(track, album)
-
+        album = Album.objects.filter(spotify_id=spotify_id).first()
+        if album:
             return album
+
+        album_data = self.client.album(spotify_id)
+        return self.get_or_create_album_from_data(
+            album_data,
+            tracks=album_data.get('tracks', {}).get('items', []),
+        )
+
+    def get_or_create_album_from_data(self, album_data, tracks=None):
+        """Resolve an album from Spotify payload already in memory."""
+        artists = [
+            self.get_or_create_artist_from_data(artist_data)
+            for artist_data in album_data.get('artists', [])
+        ]
+        album = self.matcher.resolve_album(
+            spotify_id=album_data.get('id'),
+            name=album_data.get('name'),
+            artist_names=[artist_data.get('name') for artist_data in album_data.get('artists', [])],
+            artists=artists,
+            album_type=album_data.get('album_type', 'album'),
+            release_date=album_data.get('release_date', ''),
+            total_tracks=album_data.get('total_tracks', 0),
+            image_url=(album_data.get('images') or [{}])[0].get('url'),
+            genres=album_data.get('genres', []),
+        )
+
+        for track in tracks or []:
+            self._create_song_from_track(track, album)
+
+        return album
 
     def _create_song_from_track(self, track_data, album):
         """Create song from Spotify track data"""
-        song, created = Song.objects.get_or_create(
-            spotify_id=track_data['id'],
-            defaults={
-                'name': track_data['name'],
-                'album': album,
-                'track_number': track_data['track_number'],
-                'disc_number': track_data.get('disc_number', 1),
-                'duration_ms': track_data['duration_ms'],
-                'explicit': track_data.get('explicit', False),
-                'preview_url': track_data.get('preview_url'),
-            }
+        artists = [
+            self.get_or_create_artist_from_data(artist_data)
+            for artist_data in track_data.get('artists', [])
+        ]
+        song, _ = self.matcher.resolve_song(
+            spotify_id=track_data.get('id'),
+            name=track_data.get('name'),
+            album=album,
+            artist_names=[artist_data.get('name') for artist_data in track_data.get('artists', [])],
+            artists=artists,
+            track_number=track_data.get('track_number', 0),
+            disc_number=track_data.get('disc_number', 1),
+            duration_ms=track_data.get('duration_ms', 0),
+            explicit=track_data.get('explicit', False),
+            preview_url=track_data.get('preview_url'),
         )
-
-        if created:
-            # Add artists
-            artists = []
-            for artist_data in track_data['artists']:
-                artist = self.get_or_create_artist(artist_data['id'])
-                artists.append(artist)
-            song.artists.set(artists)
-
         return song
 
     def sync_recently_played(self):
@@ -132,9 +139,7 @@ class SpotifyService:
             album = self.get_or_create_album(track['album']['id'])
 
             # Get or create song
-            song = Song.objects.filter(spotify_id=track['id']).first()
-            if not song:
-                song = self._create_song_from_track(track, album)
+            song = self._create_song_from_track(track, album)
 
             # Create listening history entry (avoid duplicates)
             ListeningHistory.objects.get_or_create(

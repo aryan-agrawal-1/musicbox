@@ -1,6 +1,8 @@
 from django.urls import path
 from music.views import (
     SearchView,
+    LocalSearchView,
+    SpotifyFillSearchView,
     AlbumListView,
     AlbumDetailView,
     SongDetailView,
@@ -13,6 +15,8 @@ from music.views import (
 
 urlpatterns = [
     path('search/', SearchView.as_view(), name='music-search'),
+    path('search/local/', LocalSearchView.as_view(), name='music-search-local'),
+    path('search/spotify-fill/', SpotifyFillSearchView.as_view(), name='music-search-spotify-fill'),
     path('albums/', AlbumListView.as_view(), name='album-list'),
     path('albums/<int:pk>/', AlbumDetailView.as_view(), name='album-detail'),
     path('songs/<int:pk>/', SongDetailView.as_view(), name='song-detail'),

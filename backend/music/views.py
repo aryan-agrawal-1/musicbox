@@ -14,6 +14,12 @@ from music.serializers import (
 )
 from music.services.spotify_service import SpotifyService
 from music.services.apple_music_service import AppleMusicService
+from music.services.local_catalog_search import (
+    search_albums_local,
+    search_artists_local,
+    search_songs_local,
+)
+from music.services.spotify_search_hydration import SpotifySearchHydrator
 
 
 class AlbumListView(ListAPIView):
@@ -94,120 +100,163 @@ class SearchView(APIView):
             return Response({'error': 'limit and offset must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
 
         service = SpotifyService()
+        hydrator = SpotifySearchHydrator(service)
         raw = service.search(query, types=types, limit=limit, offset=offset)
 
         response = {}
         if 'albums' in raw:
-            response['albums'] = self._hydrate_albums(raw['albums']['items'])
+            response['albums'] = hydrator.hydrate_albums(raw['albums']['items'])
         if 'tracks' in raw:
-            response['tracks'] = self._hydrate_tracks(raw['tracks']['items'])
+            response['tracks'] = hydrator.hydrate_tracks(raw['tracks']['items'])
         if 'artists' in raw:
-            response['artists'] = self._hydrate_artists(raw['artists']['items'])
+            response['artists'] = hydrator.hydrate_artists(raw['artists']['items'])
 
         return Response(response)
 
-    # ── private helpers ───────────────────────────────────────────────────────
 
-    def _artist_from_data(self, data):
-        """Get or create an Artist from Spotify data already in memory. No API call."""
-        artist, _ = Artist.objects.get_or_create(
-            spotify_id=data['id'],
-            defaults={
-                'name': data['name'],
-                'image_url': (data.get('images') or [{}])[0].get('url'),
-                'genres': data.get('genres', []),
-            },
-        )
-        return artist
+def _parse_int_id_set(request, param: str, *, max_len: int = 2000) -> set[int]:
+    raw = request.query_params.get(param, '').strip()
+    if len(raw) > max_len:
+        return set()
+    out: set[int] = set()
+    for part in raw.split(','):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            out.add(int(part))
+        except ValueError:
+            continue
+    return out
 
-    def _album_from_data(self, data):
-        """Get or create an Album from Spotify data already in memory. No API call."""
-        album = Album.objects.filter(spotify_id=data['id']).first()
-        if album:
-            return album
-        artists = [self._artist_from_data(a) for a in data.get('artists', [])]
-        album = Album.objects.create(
-            spotify_id=data['id'],
-            name=data['name'],
-            album_type=data.get('album_type', 'album'),
-            release_date=data.get('release_date', ''),
-            total_tracks=data.get('total_tracks', 0),
-            image_url=(data.get('images') or [{}])[0].get('url'),
-        )
-        album.artists.set(artists)
-        return album
 
-    def _hydrate_albums(self, items):
-        if not items:
-            return []
-        existing = {
-            a.spotify_id: a
-            for a in Album.objects.filter(
-                spotify_id__in=[i['id'] for i in items]
-            ).prefetch_related('artists')
-        }
-        results = []
-        for item in items:
-            try:
-                album = existing.get(item['id'])
-                if not album:
-                    album = self._album_from_data(item)
-                    album = Album.objects.prefetch_related('artists').get(pk=album.pk)
-                results.append(AlbumSerializer(album).data)
-            except Exception:
-                pass
-        return results
+def _parse_spotify_id_set(request, param: str, *, max_len: int = 4000) -> set[str]:
+    raw = request.query_params.get(param, '').strip()
+    if len(raw) > max_len:
+        return set()
+    return {p.strip() for p in raw.split(',') if p.strip()}
 
-    def _hydrate_tracks(self, items):
-        if not items:
-            return []
-        existing = {
-            s.spotify_id: s
-            for s in Song.objects.filter(
-                spotify_id__in=[i['id'] for i in items]
-            ).select_related('album').prefetch_related('artists')
-        }
-        results = []
-        for item in items:
-            try:
-                song = existing.get(item['id'])
-                if not song:
-                    album = self._album_from_data(item['album'])
-                    song, created = Song.objects.get_or_create(
-                        spotify_id=item['id'],
-                        defaults={
-                            'name': item['name'],
-                            'album': album,
-                            'track_number': item.get('track_number', 0),
-                            'disc_number': item.get('disc_number', 1),
-                            'duration_ms': item.get('duration_ms', 0),
-                            'explicit': item.get('explicit', False),
-                            'preview_url': item.get('preview_url'),
-                        },
-                    )
-                    if created:
-                        song.artists.set([self._artist_from_data(a) for a in item.get('artists', [])])
-                    song = Song.objects.select_related('album').prefetch_related('artists').get(pk=song.pk)
-                results.append(SongSerializer(song).data)
-            except Exception:
-                pass
-        return results
 
-    def _hydrate_artists(self, items):
-        if not items:
-            return []
-        existing = {
-            a.spotify_id: a
-            for a in Artist.objects.filter(spotify_id__in=[i['id'] for i in items])
-        }
-        results = []
-        for item in items:
-            try:
-                artist = existing.get(item['id']) or self._artist_from_data(item)
-                results.append(ArtistSerializer(artist).data)
-            except Exception:
-                pass
-        return results
+def _filter_search_rows(
+    rows: list[dict],
+    *,
+    exclude_pks: set[int],
+    exclude_spotify_ids: set[str],
+) -> list[dict]:
+    filtered = []
+    for row in rows:
+        pk = row.get('id')
+        if pk in exclude_pks:
+            continue
+        sid = row.get('spotify_id')
+        if sid and sid in exclude_spotify_ids:
+            continue
+        filtered.append(row)
+    return filtered
+
+
+class LocalSearchView(APIView):
+    """Search the local catalog only (no Spotify). Same response keys as SearchView."""
+
+    permission_classes = [AllowAny]
+    _VALID_SEARCH_TYPES = {'album', 'track', 'artist'}
+
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response({'error': 'Query parameter "q" is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(query) > 200:
+            return Response({'error': 'Query too long.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        types_param = request.query_params.get('type', 'album,track,artist')
+        types = [t.strip() for t in types_param.split(',') if t.strip() in self._VALID_SEARCH_TYPES]
+        if not types:
+            types = ['album', 'track', 'artist']
+
+        try:
+            limit = min(int(request.query_params.get('limit', 10)), 10)
+            offset = int(request.query_params.get('offset', 0))
+        except ValueError:
+            return Response({'error': 'limit and offset must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        response = {}
+        if 'album' in types:
+            albums = search_albums_local(query, limit=limit, offset=offset)
+            response['albums'] = AlbumSerializer(albums, many=True).data
+        if 'track' in types:
+            songs = search_songs_local(query, limit=limit, offset=offset)
+            response['tracks'] = SongSerializer(songs, many=True).data
+        if 'artist' in types:
+            artists = search_artists_local(query, limit=limit, offset=offset)
+            response['artists'] = ArtistSerializer(artists, many=True).data
+
+        return Response(response)
+
+
+class SpotifyFillSearchView(APIView):
+    """
+    Spotify search + hydrate, then drop rows already represented by local results.
+
+    Pass exclude_* query params (comma-separated) for PKs and optional Spotify IDs
+    so merged UI can show local first without duplicates.
+    """
+
+    permission_classes = [AllowAny]
+    _VALID_SEARCH_TYPES = {'album', 'track', 'artist'}
+
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response({'error': 'Query parameter "q" is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(query) > 200:
+            return Response({'error': 'Query too long.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        types_param = request.query_params.get('type', 'album,track,artist')
+        types = [t.strip() for t in types_param.split(',') if t.strip() in self._VALID_SEARCH_TYPES]
+        if not types:
+            types = ['album', 'track', 'artist']
+
+        try:
+            limit = min(int(request.query_params.get('limit', 10)), 10)
+            offset = int(request.query_params.get('offset', 0))
+        except ValueError:
+            return Response({'error': 'limit and offset must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        exclude_album_ids = _parse_int_id_set(request, 'exclude_album_ids')
+        exclude_track_ids = _parse_int_id_set(request, 'exclude_track_ids')
+        exclude_artist_ids = _parse_int_id_set(request, 'exclude_artist_ids')
+        exclude_album_spotify_ids = _parse_spotify_id_set(request, 'exclude_album_spotify_ids')
+        exclude_track_spotify_ids = _parse_spotify_id_set(request, 'exclude_track_spotify_ids')
+        exclude_artist_spotify_ids = _parse_spotify_id_set(request, 'exclude_artist_spotify_ids')
+
+        service = SpotifyService()
+        hydrator = SpotifySearchHydrator(service)
+        raw = service.search(query, types=types, limit=limit, offset=offset)
+
+        response = {}
+        if 'albums' in raw:
+            rows = hydrator.hydrate_albums(raw['albums']['items'])
+            response['albums'] = _filter_search_rows(
+                rows,
+                exclude_pks=exclude_album_ids,
+                exclude_spotify_ids=exclude_album_spotify_ids,
+            )
+        if 'tracks' in raw:
+            rows = hydrator.hydrate_tracks(raw['tracks']['items'])
+            response['tracks'] = _filter_search_rows(
+                rows,
+                exclude_pks=exclude_track_ids,
+                exclude_spotify_ids=exclude_track_spotify_ids,
+            )
+        if 'artists' in raw:
+            rows = hydrator.hydrate_artists(raw['artists']['items'])
+            response['artists'] = _filter_search_rows(
+                rows,
+                exclude_pks=exclude_artist_ids,
+                exclude_spotify_ids=exclude_artist_spotify_ids,
+            )
+
+        return Response(response)
 
 
 class AlbumDetailView(APIView):

@@ -1,4 +1,3 @@
-import re
 import time
 import requests
 import jwt
@@ -8,6 +7,7 @@ from django.utils import timezone
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from music.models import Artist, Album, Song, ListeningHistory
+from music.services.catalog_matcher import CatalogMatcher, normalize_catalog_text
 
 
 class AppleMusicAuthError(Exception):
@@ -17,11 +17,7 @@ class AppleMusicAuthError(Exception):
 
 def _normalize_title(s: str) -> str:
     """Lowercase, strip feat. clauses and punctuation, collapse whitespace."""
-    s = s.lower()
-    s = re.sub(r'\s*[\(\[]\s*feat\..*?[\)\]]', '', s, flags=re.IGNORECASE)
-    s = re.sub(r'\s*ft\..*', '', s, flags=re.IGNORECASE)
-    s = re.sub(r'[^\w\s]', '', s)
-    return re.sub(r'\s+', ' ', s).strip()
+    return normalize_catalog_text(s)
 
 
 # GET /v1/catalog/{storefront}/charts — max `limit` per request (API returns 400 above this).
@@ -35,6 +31,9 @@ class AppleMusicService:
     CACHE_KEY = 'apple_music_dev_token'
     TOKEN_TTL = 43200  # 12 hours in seconds
     CACHE_TTL = 39600  # 11 hours (slightly less to avoid edge cases)
+
+    def __init__(self):
+        self.matcher = CatalogMatcher()
 
     # ------------------------------------------------------------------
     # Developer token (JWT, ES256, signed server-side)
@@ -137,39 +136,19 @@ class AppleMusicService:
         artist_name = attrs.get('artistName', '')
         isrc = attrs.get('isrc')
 
-        # 1. apple_music_id match
-        if am_id:
-            song = Song.objects.filter(apple_music_id=am_id).first()
-            if song:
-                return song, False
-
-        # 2. name + artist match within this album
-        if track_name and artist_name:
-            song = Song.objects.filter(album=album, name__iexact=track_name).first()
-            if song:
-                if am_id and not song.apple_music_id:
-                    song.apple_music_id = am_id
-                    song.save(update_fields=['apple_music_id'])
-                return song, False
-
-        artwork = attrs.get('artwork', {})
-        image_url = None
-        if artwork.get('url'):
-            image_url = artwork['url'].replace('{w}', '500').replace('{h}', '500')
-
         artist = self._get_or_create_apple_artist(artist_name)
-        song = Song.objects.create(
+        return self.matcher.resolve_song(
             apple_music_id=am_id or None,
             isrc=isrc,
             name=track_name or 'Unknown Track',
             album=album,
+            artist_names=[artist_name],
+            artists=[artist],
             duration_ms=attrs.get('durationInMillis', 0),
             track_number=attrs.get('trackNumber', 0),
             disc_number=attrs.get('discNumber', 1),
             explicit=attrs.get('contentRating') == 'explicit',
         )
-        song.artists.set([artist])
-        return song, True
 
     def create_album_from_apple(self, album_dict: dict, storefront: str = 'us') -> tuple['Album', int]:
         """Create or get an Album (with all tracks) from an Apple Music album dict.
@@ -189,29 +168,18 @@ class AppleMusicService:
         if artwork.get('url'):
             image_url = artwork['url'].replace('{w}', '500').replace('{h}', '500')
 
-        # Get or create album
-        album = None
-        created_album = False
-        if am_id:
-            album = Album.objects.filter(apple_music_id=am_id).first()
-        if not album and album_name:
-            album = Album.objects.filter(name__iexact=album_name).first()
-        if not album:
-            artist = self._get_or_create_apple_artist(artist_name)
-            album = Album.objects.create(
-                apple_music_id=am_id or None,
-                name=album_name or 'Unknown Album',
-                album_type='album',
-                release_date=release_date or '',
-                total_tracks=track_count,
-                image_url=image_url,
-                genres=genres,
-            )
-            album.artists.set([artist])
-            created_album = True
-        elif am_id and not album.apple_music_id:
-            album.apple_music_id = am_id
-            album.save(update_fields=['apple_music_id'])
+        artist = self._get_or_create_apple_artist(artist_name)
+        album = self.matcher.resolve_album(
+            apple_music_id=am_id or None,
+            name=album_name or 'Unknown Album',
+            artist_names=[artist_name],
+            artists=[artist],
+            album_type='album',
+            release_date=release_date or '',
+            total_tracks=track_count,
+            image_url=image_url,
+            genres=genres,
+        )
 
         # Fetch full album with tracks
         songs_created = 0
@@ -289,46 +257,44 @@ class AppleMusicService:
         duration_ms = attrs.get('durationInMillis', 0)
         artwork = attrs.get('artwork', {})
         release_date = attrs.get('releaseDate', '')
-
-        # 1. apple_music_id match
-        if am_id:
-            song = Song.objects.filter(apple_music_id=am_id).select_related('album').first()
-            if song:
-                return song
-
-        # 2. Normalised name + artist match
         norm_name = _normalize_title(track_name)
         norm_artist = _normalize_title(artist_name)
-        if norm_name and norm_artist:
-            song = (
-                Song.objects
-                .filter(name__iexact=track_name, artists__name__iexact=artist_name)
-                .select_related('album')
-                .first()
-            )
-            if not song:
-                # Try with normalised forms
-                for s in Song.objects.filter(name__icontains=norm_name).select_related('album').prefetch_related('artists')[:20]:
-                    if _normalize_title(s.name) == norm_name:
-                        for a in s.artists.all():
-                            if _normalize_title(a.name) == norm_artist:
-                                song = s
-                                break
-                    if song:
-                        break
+        image_url = None
+        if artwork.get('url'):
+            image_url = artwork['url'].replace('{w}', '500').replace('{h}', '500')
 
-            if song:
-                # Backfill apple_music_id and isrc if missing
-                updated = False
-                if am_id and not song.apple_music_id:
-                    song.apple_music_id = am_id
-                    updated = True
-                if isrc and not song.isrc:
-                    song.isrc = isrc
-                    updated = True
-                if updated:
-                    song.save(update_fields=[f for f in ['apple_music_id', 'isrc'] if getattr(song, f)])
-                return song
+        album = self._get_or_create_apple_album(
+            album_name=album_name,
+            artist_name=artist_name,
+            am_album_id=None,
+            image_url=image_url,
+            release_date=release_date,
+        )
+        artist = self._get_or_create_apple_artist(artist_name)
+
+        local_song = self.matcher.find_song(
+            apple_music_id=am_id or None,
+            isrc=isrc,
+            name=track_name,
+            album=album,
+            artist_names=[artist_name],
+            track_number=attrs.get('trackNumber', 0),
+            disc_number=attrs.get('discNumber', 1),
+        )
+        if local_song:
+            song, _ = self.matcher.resolve_song(
+                apple_music_id=am_id or None,
+                isrc=isrc,
+                name=track_name,
+                album=album,
+                artist_names=[artist_name],
+                artists=[artist],
+                duration_ms=duration_ms,
+                track_number=attrs.get('trackNumber', 0),
+                disc_number=attrs.get('discNumber', 1),
+                explicit=attrs.get('contentRating') == 'explicit',
+            )
+            return song
 
         # 3. Try Spotify catalog search to keep canonical Spotify metadata
         if track_name and artist_name:
@@ -342,53 +308,46 @@ class AppleMusicService:
                         item['artists'][0]['name'] if item.get('artists') else ''
                     )
                     if item_name == norm_name and item_artist == norm_artist:
-                        album = spotify.get_or_create_album(item['album']['id'])
-                        song = Song.objects.filter(spotify_id=item['id']).select_related('album').first()
-                        if song:
-                            if am_id and not song.apple_music_id:
-                                song.apple_music_id = am_id
-                                song.save(update_fields=['apple_music_id'])
-                            return song
-                        break
+                        spotify_album = spotify.get_or_create_album(item['album']['id'])
+                        spotify_artists = [
+                            spotify.get_or_create_artist_from_data(artist_data)
+                            for artist_data in item.get('artists', [])
+                        ]
+                        song, _ = self.matcher.resolve_song(
+                            spotify_id=item.get('id'),
+                            apple_music_id=am_id or None,
+                            isrc=isrc,
+                            name=item.get('name') or track_name,
+                            album=spotify_album,
+                            artist_names=[artist_data.get('name') for artist_data in item.get('artists', [])],
+                            artists=spotify_artists,
+                            duration_ms=item.get('duration_ms', duration_ms),
+                            track_number=item.get('track_number', attrs.get('trackNumber', 0)),
+                            disc_number=item.get('disc_number', attrs.get('discNumber', 1)),
+                            explicit=item.get('explicit', attrs.get('contentRating') == 'explicit'),
+                            preview_url=item.get('preview_url'),
+                        )
+                        return song
             except Exception:
                 pass  # Spotify search is best-effort; fall through to creation
 
         # 4. Create minimal record with apple_music_id
-        image_url = None
-        if artwork.get('url'):
-            image_url = artwork['url'].replace('{w}', '500').replace('{h}', '500')
-
-        # Get or create a minimal album
-        album = self._get_or_create_apple_album(
-            album_name=album_name,
-            artist_name=artist_name,
-            am_album_id=None,
-            image_url=image_url,
-            release_date=release_date,
-        )
-
-        artist = self._get_or_create_apple_artist(artist_name)
-
-        song = Song.objects.create(
+        song, _ = self.matcher.resolve_song(
             apple_music_id=am_id or None,
             isrc=isrc,
             name=track_name,
             album=album,
+            artist_names=[artist_name],
+            artists=[artist],
             duration_ms=duration_ms,
             track_number=attrs.get('trackNumber', 0),
             disc_number=attrs.get('discNumber', 1),
             explicit=attrs.get('contentRating') == 'explicit',
         )
-        song.artists.set([artist])
         return song
 
     def _get_or_create_apple_artist(self, name: str) -> Artist:
-        if not name:
-            name = 'Unknown Artist'
-        artist = Artist.objects.filter(name__iexact=name).first()
-        if artist:
-            return artist
-        return Artist.objects.create(name=name)
+        return self.matcher.resolve_artist(name=name or 'Unknown Artist')
 
     def _get_or_create_apple_album(
         self,
@@ -398,27 +357,17 @@ class AppleMusicService:
         image_url: str | None,
         release_date: str,
     ) -> Album:
-        if am_album_id:
-            album = Album.objects.filter(apple_music_id=am_album_id).first()
-            if album:
-                return album
-
-        if album_name:
-            album = Album.objects.filter(name__iexact=album_name).first()
-            if album:
-                return album
-
         artist = self._get_or_create_apple_artist(artist_name)
-        album = Album.objects.create(
+        return self.matcher.resolve_album(
             apple_music_id=am_album_id,
             name=album_name or 'Unknown Album',
+            artist_names=[artist_name],
+            artists=[artist],
             album_type='album',
             release_date=release_date or '',
             total_tracks=0,
             image_url=image_url,
         )
-        album.artists.set([artist])
-        return album
 
     def sync_listening_history(self, user, tracks: list[dict]) -> list[Song]:
         """Match/create songs for each track and write ListeningHistory rows.
