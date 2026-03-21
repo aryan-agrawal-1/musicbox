@@ -1,6 +1,9 @@
 from django.core.management.base import BaseCommand
 
-from music.services.apple_music_service import AppleMusicService
+from music.services.apple_music_service import (
+    APPLE_MUSIC_CHARTS_MAX_LIMIT,
+    AppleMusicService,
+)
 
 GENRE_NAMES = {
     '14': 'Pop',
@@ -21,8 +24,11 @@ class Command(BaseCommand):
             help='Apple Music storefront/region (default: us)',
         )
         parser.add_argument(
-            '--limit', type=int, default=25,
-            help='Number of albums and songs to fetch per chart (max 25, default: 25)',
+            '--limit', type=int, default=200,
+            help=(
+                f'Number of albums and songs to fetch per chart '
+                f'(max {APPLE_MUSIC_CHARTS_MAX_LIMIT} per Apple Music API request, default: 25)'
+            ),
         )
         parser.add_argument(
             '--genres', nargs='+', default=list(GENRE_NAMES.keys()),
@@ -39,7 +45,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         storefront = options['storefront']
-        limit = min(options['limit'], 25)
+        limit = min(options['limit'], APPLE_MUSIC_CHARTS_MAX_LIMIT)
         genres = options['genres']
         skip_overall = options['no_overall']
 

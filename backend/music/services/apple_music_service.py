@@ -24,6 +24,10 @@ def _normalize_title(s: str) -> str:
     return re.sub(r'\s+', ' ', s).strip()
 
 
+# GET /v1/catalog/{storefront}/charts — max `limit` per request (API returns 400 above this).
+APPLE_MUSIC_CHARTS_MAX_LIMIT = 200
+
+
 class AppleMusicService:
     """Service for Apple Music API integration"""
 
@@ -85,7 +89,10 @@ class AppleMusicService:
 
         Returns the 'results' dict with 'albums' and 'songs' keys.
         No user token required — developer token only.
+
+        ``limit`` is capped at APPLE_MUSIC_CHARTS_MAX_LIMIT (200); higher values are a 400 from Apple.
         """
+        limit = min(max(limit, 1), APPLE_MUSIC_CHARTS_MAX_LIMIT)
         params = {'types': 'albums,songs', 'limit': limit}
         if genre_id:
             params['genre'] = genre_id
