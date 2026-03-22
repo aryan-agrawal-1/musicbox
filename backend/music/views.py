@@ -21,6 +21,24 @@ from music.services.local_catalog_search import (
 )
 from music.services.spotify_search_hydration import SpotifySearchHydrator
 
+# Local DB: no Spotify cap. Spotify search: Feb 2026 caps GET /search `limit` at 10 per type per request
+# (see https://developer.spotify.com/documentation/web-api/references/changes/february-2026).
+_LOCAL_SEARCH_MAX_LIMIT = 100
+_SPOTIFY_SEARCH_MAX_LIMIT = 10
+_SPOTIFY_FILL_MAX_LIMIT = 100
+# Paginate with limit=10 per call; enough pages to reach _SPOTIFY_FILL_MAX_LIMIT after exclusions.
+_SPOTIFY_FILL_MAX_PAGES = 20
+
+
+def _spotify_search_page_has_items(raw: dict, types: list[str]) -> bool:
+    if 'album' in types and raw.get('albums', {}).get('items'):
+        return True
+    if 'track' in types and raw.get('tracks', {}).get('items'):
+        return True
+    if 'artist' in types and raw.get('artists', {}).get('items'):
+        return True
+    return False
+
 
 class AlbumListView(ListAPIView):
     """List albums ordered by popularity or release date for feed discovery sections."""
@@ -94,7 +112,7 @@ class SearchView(APIView):
             types = ['album', 'track', 'artist']
 
         try:
-            limit = min(int(request.query_params.get('limit', 10)), 10)
+            limit = min(int(request.query_params.get('limit', 10)), _SPOTIFY_SEARCH_MAX_LIMIT)
             offset = int(request.query_params.get('offset', 0))
         except ValueError:
             return Response({'error': 'limit and offset must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -174,7 +192,7 @@ class LocalSearchView(APIView):
             types = ['album', 'track', 'artist']
 
         try:
-            limit = min(int(request.query_params.get('limit', 10)), 10)
+            limit = min(int(request.query_params.get('limit', 10)), _LOCAL_SEARCH_MAX_LIMIT)
             offset = int(request.query_params.get('offset', 0))
         except ValueError:
             return Response({'error': 'limit and offset must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -217,8 +235,8 @@ class SpotifyFillSearchView(APIView):
             types = ['album', 'track', 'artist']
 
         try:
-            limit = min(int(request.query_params.get('limit', 10)), 10)
-            offset = int(request.query_params.get('offset', 0))
+            limit = min(int(request.query_params.get('limit', 10)), _SPOTIFY_FILL_MAX_LIMIT)
+            initial_offset = int(request.query_params.get('offset', 0))
         except ValueError:
             return Response({'error': 'limit and offset must be integers.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -231,30 +249,71 @@ class SpotifyFillSearchView(APIView):
 
         service = SpotifyService()
         hydrator = SpotifySearchHydrator(service)
-        raw = service.search(query, types=types, limit=limit, offset=offset)
+
+        aggregated: dict[str, list] = {'albums': [], 'tracks': [], 'artists': []}
+        spotify_offset = initial_offset
+
+        for _ in range(_SPOTIFY_FILL_MAX_PAGES):
+            need_album = 'album' in types and len(aggregated['albums']) < limit
+            need_track = 'track' in types and len(aggregated['tracks']) < limit
+            need_artist = 'artist' in types and len(aggregated['artists']) < limit
+            if not (need_album or need_track or need_artist):
+                break
+
+            raw = service.search(
+                query,
+                types=types,
+                limit=_SPOTIFY_SEARCH_MAX_LIMIT,
+                offset=spotify_offset,
+            )
+            spotify_offset += _SPOTIFY_SEARCH_MAX_LIMIT
+
+            if not _spotify_search_page_has_items(raw, types):
+                break
+
+            if 'albums' in raw and 'album' in types:
+                rows = hydrator.hydrate_albums(raw['albums']['items'])
+                filtered = _filter_search_rows(
+                    rows,
+                    exclude_pks=exclude_album_ids,
+                    exclude_spotify_ids=exclude_album_spotify_ids,
+                )
+                for row in filtered:
+                    if len(aggregated['albums']) >= limit:
+                        break
+                    aggregated['albums'].append(row)
+
+            if 'tracks' in raw and 'track' in types:
+                rows = hydrator.hydrate_tracks(raw['tracks']['items'])
+                filtered = _filter_search_rows(
+                    rows,
+                    exclude_pks=exclude_track_ids,
+                    exclude_spotify_ids=exclude_track_spotify_ids,
+                )
+                for row in filtered:
+                    if len(aggregated['tracks']) >= limit:
+                        break
+                    aggregated['tracks'].append(row)
+
+            if 'artists' in raw and 'artist' in types:
+                rows = hydrator.hydrate_artists(raw['artists']['items'])
+                filtered = _filter_search_rows(
+                    rows,
+                    exclude_pks=exclude_artist_ids,
+                    exclude_spotify_ids=exclude_artist_spotify_ids,
+                )
+                for row in filtered:
+                    if len(aggregated['artists']) >= limit:
+                        break
+                    aggregated['artists'].append(row)
 
         response = {}
-        if 'albums' in raw:
-            rows = hydrator.hydrate_albums(raw['albums']['items'])
-            response['albums'] = _filter_search_rows(
-                rows,
-                exclude_pks=exclude_album_ids,
-                exclude_spotify_ids=exclude_album_spotify_ids,
-            )
-        if 'tracks' in raw:
-            rows = hydrator.hydrate_tracks(raw['tracks']['items'])
-            response['tracks'] = _filter_search_rows(
-                rows,
-                exclude_pks=exclude_track_ids,
-                exclude_spotify_ids=exclude_track_spotify_ids,
-            )
-        if 'artists' in raw:
-            rows = hydrator.hydrate_artists(raw['artists']['items'])
-            response['artists'] = _filter_search_rows(
-                rows,
-                exclude_pks=exclude_artist_ids,
-                exclude_spotify_ids=exclude_artist_spotify_ids,
-            )
+        if 'album' in types:
+            response['albums'] = aggregated['albums'][:limit]
+        if 'track' in types:
+            response['tracks'] = aggregated['tracks'][:limit]
+        if 'artist' in types:
+            response['artists'] = aggregated['artists'][:limit]
 
         return Response(response)
 

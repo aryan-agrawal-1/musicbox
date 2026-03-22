@@ -9,7 +9,8 @@ export interface SearchResults {
   artists?: Artist[];
 }
 
-const SEARCH_LIMIT = 10;
+/** Max results per category (albums / tracks / artists). Must stay within backend caps. */
+const SEARCH_LIMIT = 100;
 
 function mergeMusicResults<T extends { id: number }>(
   local: T[] | undefined,

@@ -157,7 +157,7 @@ class SpotifyService:
     def search(self, query, types=['album', 'track', 'artist'], limit=10, offset=0):
         """Search Spotify for albums, tracks, or artists.
 
-        Note: Spotify API (Feb 2026) caps limit at 10.
+        GET /search caps ``limit`` at 10 per type per request
         """
         limit = min(limit, 10)
         return self.client.search(q=query, type=','.join(types), limit=limit, offset=offset)

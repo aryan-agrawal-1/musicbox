@@ -18,6 +18,8 @@ def _fake_spotify_service_class(search_payload, matcher):
             self.client = None
 
         def search(self, query, types=None, limit=10, offset=0):
+            if offset > 0:
+                return {}
             return search_payload
 
         def get_or_create_artist_from_data(self, artist_data):
