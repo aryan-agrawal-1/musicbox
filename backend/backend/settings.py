@@ -171,6 +171,8 @@ REST_FRAMEWORK = {
         'anon': '30/minute',
         'user': '120/minute',
         'auth': '10/minute',  # tighter limit for auth endpoints
+        'password_reset_request': '5/minute',
+        'password_reset_confirm': '10/minute',
     },
 }
 
@@ -204,6 +206,24 @@ SPOTIFY_REDIRECT_URI = config('SPOTIFY_REDIRECT_URI', default='http://localhost:
 
 # Frontend URL
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+# Email (password reset, etc.)
+EMAIL_BACKEND = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend',
+)
+EMAIL_HOST = config('EMAIL_HOST', default='localhost')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='webmaster@localhost')
+
+# Password reset links (mobile deep link or universal link base; must include path/query host)
+# Example: muze://reset-password  or  https://app.example.com/reset-password
+PASSWORD_RESET_URL_BASE = config('PASSWORD_RESET_URL_BASE', default='muze://reset-password')
+# Django's reset token validity window (seconds). Default 3 days.
+PASSWORD_RESET_TIMEOUT = config('PASSWORD_RESET_TIMEOUT', default=60 * 60 * 24 * 3, cast=int)
 
 # Cloudflare R2 Configuration
 R2_ACCOUNT_ID = config('R2_ACCOUNT_ID', default='')

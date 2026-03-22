@@ -5,11 +5,7 @@ from django.db.models import Q, Count
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
-
-
-class AuthRateThrottle(AnonRateThrottle):
-    rate = '10/minute'
+from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.conf import settings
@@ -24,9 +20,32 @@ import base64
 import uuid
 import boto3
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
-from .serializers import UserSerializer, UserRegistrationSerializer, UserProfileSerializer, ChangePasswordSerializer
+from .serializers import (
+    UserSerializer,
+    UserRegistrationSerializer,
+    UserProfileSerializer,
+    ChangePasswordSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
+)
+from .password_reset_service import (
+    send_password_reset_email,
+    blacklist_refresh_tokens_for_user,
+)
 
 User = get_user_model()
+
+
+class AuthRateThrottle(AnonRateThrottle):
+    rate = '10/minute'
+
+
+class PasswordResetRequestThrottle(ScopedRateThrottle):
+    scope = 'password_reset_request'
+
+
+class PasswordResetConfirmThrottle(ScopedRateThrottle):
+    scope = 'password_reset_confirm'
 
 
 def encode_state(user_id, redirect_scheme=None):
@@ -107,6 +126,54 @@ def check_email(request):
         return Response({'available': False})
     exists = User.objects.filter(email__iexact=email).exists()
     return Response({'available': not exists})
+
+
+GENERIC_PASSWORD_RESET_REQUEST_MSG = (
+    "If an account exists for this email, you will receive a password reset link shortly."
+)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([PasswordResetRequestThrottle])
+def password_reset_request(request):
+    """
+    Request a password reset email. Response is identical whether or not the email exists
+    (enumeration-resistant). Apple-only accounts (no usable password) do not receive an email.
+    """
+    serializer = PasswordResetRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    email = serializer.validated_data['email']
+
+    user = User.objects.filter(email__iexact=email).first()
+    if user and user.is_active and user.has_usable_password():
+        try:
+            send_password_reset_email(user)
+        except Exception:
+            # Do not leak email/provider failures to the client
+            if settings.DEBUG:
+                raise
+            pass
+
+    return Response({'detail': GENERIC_PASSWORD_RESET_REQUEST_MSG})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([PasswordResetConfirmThrottle])
+def password_reset_confirm(request):
+    """Set a new password using uid + token from the reset email."""
+    serializer = PasswordResetConfirmSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.validated_data['user']
+    new_password = serializer.validated_data['new_password']
+
+    user.set_password(new_password)
+    user.save(update_fields=['password'])
+
+    blacklist_refresh_tokens_for_user(user)
+
+    return Response({'detail': 'Your password has been reset. You can sign in with your new password.'})
 
 
 class UserProfileView(generics.RetrieveAPIView):

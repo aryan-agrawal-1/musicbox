@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Stack, useSegments } from 'expo-router';
+import { Stack, useSegments, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -28,9 +29,11 @@ import type { User, AuthTokens } from '@/types/api';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [animationDone, setAnimationDone] = useState(false);
+  const initialResetUrlConsumed = useRef(false);
 
   useEffect(() => {
     async function restoreSession() {
@@ -143,6 +146,42 @@ export default function RootLayout() {
     queryClient.clear();
     setUser(null);
   }, []);
+
+  // Password reset deep links (e.g. muze://reset-password?uid=...&token=...)
+  useEffect(() => {
+    if (isLoading) return;
+
+    let cancelled = false;
+
+    async function handleIncoming(url: string | null) {
+      if (!url || cancelled) return;
+      const parsed = Linking.parse(url);
+      const path = (parsed.path ?? '').replace(/^\//, '');
+      if (!path.includes('reset-password')) return;
+      const q = parsed.queryParams ?? {};
+      const uid =
+        typeof q.uid === 'string' ? q.uid : Array.isArray(q.uid) ? q.uid[0] : undefined;
+      const token =
+        typeof q.token === 'string' ? q.token : Array.isArray(q.token) ? q.token[0] : undefined;
+      if (!uid || !token) return;
+      if (user) {
+        await logout();
+      }
+      if (!cancelled) {
+        router.push({ pathname: '/(auth)/reset-password', params: { uid, token } });
+      }
+    }
+
+    if (!initialResetUrlConsumed.current) {
+      initialResetUrlConsumed.current = true;
+      Linking.getInitialURL().then(handleIncoming);
+    }
+    const sub = Linking.addEventListener('url', (e) => handleIncoming(e.url));
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, [isLoading, user, router, logout]);
 
   const deleteAccount = useCallback(async () => {
     // Remove push token first while the user still exists, then delete account.

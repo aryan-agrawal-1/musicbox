@@ -1,7 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.utils import timezone
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from datetime import timedelta
 from drf_spectacular.utils import extend_schema_field
 
@@ -151,4 +154,64 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate(self, data):
         if data['new_password'] != data['new_password_confirm']:
             raise serializers.ValidationError({"new_password_confirm": "Passwords don't match."})
+        return data
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """Request a password reset email (email only)."""
+
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Confirm reset with uid, token, and new password."""
+
+    uid = serializers.CharField(required=True)
+    token = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, write_only=True, validators=[validate_password])
+    new_password_confirm = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, data):
+        if data['new_password'] != data['new_password_confirm']:
+            raise serializers.ValidationError(
+                {"new_password_confirm": "Passwords don't match."}
+            )
+
+        uid_b64 = data['uid'].strip()
+        token = data['token'].strip()
+
+        try:
+            pk = force_str(urlsafe_base64_decode(uid_b64))
+            user = User.objects.get(pk=pk)
+        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+            raise serializers.ValidationError(
+                {"token": ["This reset link is invalid or has expired."]}
+            )
+
+        if not user.is_active:
+            raise serializers.ValidationError(
+                {"token": ["This reset link is invalid or has expired."]}
+            )
+
+        if not default_token_generator.check_token(user, token):
+            raise serializers.ValidationError(
+                {"token": ["This reset link is invalid or has expired."]}
+            )
+
+        # Apple-only accounts: unusable password + linked Apple ID
+        if not user.has_usable_password() and user.apple_user_id:
+            raise serializers.ValidationError(
+                {
+                    "detail": (
+                        "This account uses Sign in with Apple and does not have a password. "
+                        "Please sign in with Apple instead."
+                    )
+                },
+                code="apple_sign_in_required",
+            )
+
+        data["user"] = user
         return data

@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import Animated, {
   useSharedValue,
@@ -24,7 +24,10 @@ import { Colors } from '@/constants/colors';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const auth = use(AuthContext);
+  const { passwordReset } = useLocalSearchParams<{ passwordReset?: string }>();
+  const showResetSuccess = passwordReset === 'success';
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -96,6 +99,18 @@ export default function LoginScreen() {
         >
           Welcome back
         </Text>
+        {showResetSuccess ? (
+          <Text
+            style={{
+              fontSize: 14,
+              color: Colors.positive,
+              marginBottom: 16,
+              lineHeight: 20,
+            }}
+          >
+            Your password was updated. Sign in with your new password.
+          </Text>
+        ) : null}
         <View style={{ gap: 16, marginTop: 8 }}>
           {/* Email / username field */}
           <Animated.View
@@ -152,7 +167,11 @@ export default function LoginScreen() {
           </Animated.View>
 
           {/* Forgot password */}
-          <Pressable hitSlop={8} style={{ alignSelf: 'flex-end' }}>
+          <Pressable
+            hitSlop={8}
+            style={{ alignSelf: 'flex-end' }}
+            onPress={() => router.push('/(auth)/forgot-password')}
+          >
             <Text style={{ fontSize: 14, color: Colors.textSecondary }}>Forgot password?</Text>
           </Pressable>
 
