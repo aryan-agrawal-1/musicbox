@@ -4,7 +4,10 @@ import LandingHeroPreview from './LandingHeroPreview.jsx'
 import RevealOnScroll from '../../components/RevealOnScroll.jsx'
 import iconForeground from '../../assets/icon-foreground.png'
 
-const APP_STORE_URL = ''
+const TESTFLIGHT_EMAIL = 'hello@getnotedapp.com'
+const TESTFLIGHT_MAILTO = `mailto:${TESTFLIGHT_EMAIL}?subject=${encodeURIComponent('Requesting TestFlight access')}&body=${encodeURIComponent(
+  "Hey Noted,\n\nI'd love early access to the TestFlight.\n\nName:\nWhy I want in:\n\nThanks!",
+)}`
 
 function LogoMark() {
   return (
@@ -41,13 +44,10 @@ export default function LandingHero() {
             Sign in
           </Link>
           <a
-            href={APP_STORE_URL || '#'}
-            onClick={(e) => {
-              if (!APP_STORE_URL) e.preventDefault()
-            }}
+            href={TESTFLIGHT_MAILTO}
             className="rounded-full bg-[#BF5AF2] px-4 py-2 text-sm font-semibold text-black shadow-[0_0_0_1px_rgba(191,90,242,0.35),0_10px_30px_rgba(191,90,242,0.20)] transition-transform hover:scale-[1.02]"
           >
-            App Store
+            Request access
           </a>
         </div>
       </nav>
@@ -56,7 +56,7 @@ export default function LandingHero() {
         <div>
           <RevealOnScroll>
             <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-300">
-              Letterboxd for music, built for your listening diary
+              Private TestFlight access for early listeners
             </p>
           </RevealOnScroll>
 
@@ -71,21 +71,18 @@ export default function LandingHero() {
 
           <RevealOnScroll delayMs={110}>
             <p className="mt-4 max-w-xl text-base leading-7 text-zinc-300 sm:text-lg">
-              Noted turns your listening history into a clean, scrollable diary so every song and album gets a
-              rating and a review that actually helps you remember.
+              Noted is currently invite-only on TestFlight. If you want to get inside early, email us and tell us
+              why you belong in the first wave of listeners shaping the app.
             </p>
           </RevealOnScroll>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
             <RevealOnScroll delayMs={140} className="">
               <a
-                href={APP_STORE_URL || '#'}
-                onClick={(e) => {
-                  if (!APP_STORE_URL) e.preventDefault()
-                }}
+                href={TESTFLIGHT_MAILTO}
                 className="inline-flex items-center justify-center rounded-2xl bg-[#BF5AF2] px-5 py-3 text-sm font-semibold text-black transition-transform hover:scale-[1.02] hover:bg-[#BF5AF2]"
               >
-                Get on the App Store
+                Request TestFlight Access
               </a>
             </RevealOnScroll>
 

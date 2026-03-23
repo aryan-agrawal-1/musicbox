@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   ActionSheetIOS,
+  Linking,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -23,6 +24,11 @@ import { useSyncListeningHistory } from '@/hooks/use-diary';
 import { useAvatarUpload } from '@/hooks/use-avatar';
 import { displayName } from '@/components/profile-tabs';
 import type { User } from '@/types/api';
+
+const SUPPORT_EMAIL = 'hello@getnotedapp.com';
+const CONTACT_US_URL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Noted support')}&body=${encodeURIComponent(
+  'Hey Noted,\n\nI wanted to reach out about:\n\n',
+)}`;
 
 // ─── Local sub-components ────────────────────────────────────────────────────
 
@@ -64,6 +70,7 @@ function Chevron() {
 
 interface RowProps {
   label: string;
+  labelSuffix?: string;
   value?: string;
   onPress?: () => void;
   destructive?: boolean;
@@ -76,6 +83,7 @@ interface RowProps {
 
 function SettingsRow({
   label,
+  labelSuffix,
   value,
   onPress,
   destructive = false,
@@ -112,6 +120,11 @@ function SettingsRow({
         }}
       >
         {label}
+        {labelSuffix ? (
+          <Text style={{ fontSize: 14, color: Colors.textTertiary }}>
+            {` ${labelSuffix}`}
+          </Text>
+        ) : null}
       </Text>
       {loading && <ActivityIndicator size="small" color={Colors.textTertiary} />}
       {!loading && rightContent}
@@ -180,7 +193,7 @@ export default function SettingsScreen() {
   // ── Avatar handlers ──────────────────────────────────────────────────────
 
   function handleAvatarPress() {
-    const hasPhoto = !!user.avatar_url;
+    const hasPhoto = !!auth.user?.avatar_url;
 
     if (process.env.EXPO_OS === 'ios') {
       const options = ['Cancel', 'Choose from Library'];
@@ -292,6 +305,20 @@ export default function SettingsScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: () => auth.logout() },
     ]);
+  }
+
+  async function handleContactUs() {
+    try {
+      const supported = await Linking.canOpenURL(CONTACT_US_URL);
+      if (!supported) {
+        Alert.alert('Contact Us', `Email us at ${SUPPORT_EMAIL}.`);
+        return;
+      }
+
+      await Linking.openURL(CONTACT_US_URL);
+    } catch {
+      Alert.alert('Contact Us', `Email us at ${SUPPORT_EMAIL}.`);
+    }
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -499,6 +526,18 @@ export default function SettingsScreen() {
                 />
               </>
             )}
+          </Section>
+        </View>
+
+        {/* ── Support ── */}
+        <View>
+          <SectionHeader title="Support" />
+          <Section>
+            <SettingsRow
+              label="Contact Us"
+              labelSuffix={`(${SUPPORT_EMAIL})`}
+              onPress={handleContactUs}
+            />
           </Section>
         </View>
 
