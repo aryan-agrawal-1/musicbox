@@ -34,6 +34,7 @@ import {
   useUnfollowMutation,
 } from '@/hooks/use-profile';
 import { formatCount } from '@/lib/format';
+import { usePostHog } from 'posthog-react-native';
 import type { User, AlbumRating, SongRating } from '@/types/api';
 
 // Profile Hero
@@ -371,6 +372,7 @@ export default function UserScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const auth = use(AuthContext);
+  const posthog = usePostHog();
   const [selectedTab, setSelectedTab] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -389,8 +391,10 @@ export default function UserScreen() {
   function handleFollowPress() {
     if (!user) return;
     if (isFollowing) {
+      posthog.capture('user_unfollowed', { target_username: username });
       unfollowMutation.mutate({ userId: user.id, username });
     } else {
+      posthog.capture('user_followed', { target_username: username });
       followMutation.mutate({ userId: user.id, username });
     }
   }

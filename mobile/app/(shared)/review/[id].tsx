@@ -26,6 +26,7 @@ import {
   useMoreFromUser,
   useToggleReviewLike,
 } from '@/hooks/use-review-detail';
+import { usePostHog } from 'posthog-react-native';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ const HERO_HEIGHT = 360;
 export default function ReviewScreen() {
   const { id, type = 'album' } = useLocalSearchParams<{ id: string; type: 'album' | 'song' }>();
   const router = useRouter();
+  const posthog = usePostHog();
 
   const [expanded, setExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -98,6 +100,10 @@ export default function ReviewScreen() {
       withSpring(1.4, { damping: 15, stiffness: 600 }),
       withSpring(1.0, { damping: 20, stiffness: 400 }),
     );
+    posthog.capture('review_liked', {
+      review_type: reviewType,
+      liked: !review.is_liked,
+    });
     toggleReviewLike.mutate({ liked: review.is_liked });
   }
 

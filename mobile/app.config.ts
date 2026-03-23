@@ -32,6 +32,8 @@ export default (): ExpoConfig => ({
   },
   extra: {
     ...baseConfig.extra,
-    appVariant
+    appVariant,
+    posthogProjectToken: process.env.POSTHOG_PROJECT_TOKEN,
+    posthogHost: process.env.POSTHOG_HOST,
   }
 });

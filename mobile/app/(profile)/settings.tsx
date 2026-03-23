@@ -23,6 +23,7 @@ import { apiFetch } from '@/lib/api';
 import { useSyncListeningHistory } from '@/hooks/use-diary';
 import { useAvatarUpload } from '@/hooks/use-avatar';
 import { displayName } from '@/components/profile-tabs';
+import { usePostHog } from 'posthog-react-native';
 import type { User } from '@/types/api';
 
 const SUPPORT_EMAIL = 'hello@getnotedapp.com';
@@ -163,6 +164,7 @@ function Section({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const auth = use(AuthContext);
   const router = useRouter();
+  const posthog = usePostHog();
   const user = auth.user;
 
   const syncMutation = useSyncListeningHistory();
@@ -171,7 +173,10 @@ export default function SettingsScreen() {
 
   const disconnectMutation = useMutation({
     mutationFn: () => disconnectAppleMusic(),
-    onSuccess: () => auth.refreshUser(),
+    onSuccess: () => {
+      posthog.capture('apple_music_disconnected');
+      auth.refreshUser();
+    },
   });
 
   const deleteAccountMutation = useMutation({
@@ -230,6 +235,7 @@ export default function SettingsScreen() {
       const connected = await connectAppleMusic();
       if (connected) {
         await auth.refreshUser();
+        posthog.capture('apple_music_connected');
         if (process.env.EXPO_OS === 'ios') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
@@ -247,6 +253,7 @@ export default function SettingsScreen() {
   function handleSyncPress() {
     syncMutation.mutate(undefined, {
       onSuccess: () => {
+        posthog.capture('listening_history_synced');
         if (process.env.EXPO_OS === 'ios') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }

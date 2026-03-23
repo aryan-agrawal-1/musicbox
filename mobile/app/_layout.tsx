@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Stack, useSegments, useRouter } from 'expo-router';
+import { Stack, useSegments, useRouter, usePathname, useGlobalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -7,10 +7,12 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, DarkTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { PostHogProvider } from 'posthog-react-native';
 
 import * as Notifications from 'expo-notifications';
 
 import { queryClient } from '@/lib/query-client';
+import { posthog } from '@/lib/posthog';
 import { tokenStore } from '@/lib/auth';
 import { apiFetch } from '@/lib/api';
 import {
@@ -30,10 +32,21 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useGlobalSearchParams();
+  const previousPathname = useRef<string | undefined>(undefined);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [animationDone, setAnimationDone] = useState(false);
   const initialResetUrlConsumed = useRef(false);
+
+  // ── Screen tracking ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (previousPathname.current !== pathname) {
+      posthog.screen(pathname, { previous_screen: previousPathname.current ?? null, ...params });
+      previousPathname.current = pathname;
+    }
+  }, [pathname, params]);
 
   useEffect(() => {
     async function restoreSession() {
@@ -42,6 +55,9 @@ export default function RootLayout() {
         if (!token) return;
         const me = await apiFetch<User>('/api/v1/auth/me/');
         setUser(me);
+        posthog.identify(String(me.id), {
+          $set: { username: me.username, email: me.email },
+        });
       } catch {
         await tokenStore.clearTokens();
       } finally {
@@ -90,6 +106,11 @@ export default function RootLayout() {
     await tokenStore.setTokens(tokens.access, tokens.refresh);
     const me = await apiFetch<User>('/api/v1/auth/me/');
     setUser(me);
+    posthog.identify(String(me.id), {
+      $set: { username: me.username, email: me.email },
+      $set_once: { first_login_date: new Date().toISOString() },
+    });
+    posthog.capture('user_signed_in', { method: 'password' });
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
@@ -98,6 +119,7 @@ export default function RootLayout() {
       body: JSON.stringify(data),
     });
     await login(data.username, data.password);
+    posthog.capture('user_registered', { method: 'password' });
   }, [login]);
 
   const appleSignIn = useCallback(async (
@@ -122,6 +144,11 @@ export default function RootLayout() {
       await tokenStore.setTokens(result.access, result.refresh);
       const me = await apiFetch<User>('/api/v1/auth/me/');
       setUser(me);
+      posthog.identify(String(me.id), {
+        $set: { username: me.username, email: me.email },
+        $set_once: { first_login_date: new Date().toISOString() },
+      });
+      posthog.capture('user_signed_in', { method: 'apple' });
       return { isExistingUser: true };
     }
 
@@ -142,6 +169,8 @@ export default function RootLayout() {
       await removePushToken(pushTokenRef.current);
       pushTokenRef.current = null;
     }
+    posthog.capture('user_signed_out');
+    posthog.reset();
     await tokenStore.clearTokens();
     queryClient.clear();
     setUser(null);
@@ -216,6 +245,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+    <PostHogProvider client={posthog} autocapture={{ captureScreens: false, captureTouches: true }}>
     <ThemeProvider value={DarkTheme}>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
@@ -250,6 +280,7 @@ export default function RootLayout() {
         </AuthContext>
       </QueryClientProvider>
     </ThemeProvider>
+    </PostHogProvider>
       {!isLoading && !animationDone && (
         <AnimatedSplash onComplete={() => setAnimationDone(true)} />
       )}

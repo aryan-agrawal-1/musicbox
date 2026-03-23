@@ -27,6 +27,7 @@ import {
   useUserSongReview,
 } from '@/hooks/use-track';
 import { apiFetch } from '@/lib/api';
+import { usePostHog } from 'posthog-react-native';
 import type {
   AlbumReview,
   AlbumRating,
@@ -44,6 +45,7 @@ export default function RateSheet() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const posthog = usePostHog();
   const params = useLocalSearchParams<RateParams>();
 
   const albumId = typeof params.albumId === 'string' ? params.albumId : undefined;
@@ -211,6 +213,12 @@ export default function RateSheet() {
       }
     },
     onSuccess: () => {
+      posthog.capture('rating_saved', {
+        media_type: mode,
+        rating,
+        has_review: reviewText.trim().length > 0,
+        is_update: !!existingRating,
+      });
       const signalId = albumId ?? trackId;
       if (signalId && mode !== 'unknown') {
         shareSignal.set({
@@ -242,6 +250,7 @@ export default function RateSheet() {
       }
     },
     onSuccess: () => {
+      posthog.capture('rating_removed', { media_type: mode });
       router.back();
     },
   });
