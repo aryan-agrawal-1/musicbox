@@ -104,6 +104,8 @@ class ListeningHistory(models.Model):
 
     played_at = models.DateTimeField(db_index=True)
     context_type = models.CharField(max_length=50, blank=True)
+    source_provider = models.CharField(max_length=50, blank=True)
+    source_item_id = models.CharField(max_length=255, blank=True, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -113,6 +115,7 @@ class ListeningHistory(models.Model):
             models.Index(fields=['user', '-played_at']),
             models.Index(fields=['song', '-played_at']),
             models.Index(fields=['-played_at']),
+            models.Index(fields=['user', 'source_provider', 'source_item_id']),
         ]
         ordering = ['-played_at']
 

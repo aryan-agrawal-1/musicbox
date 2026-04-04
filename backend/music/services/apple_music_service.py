@@ -1,8 +1,11 @@
 import time
+from datetime import timedelta
+
 import requests
 import jwt
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
 from django.utils import timezone
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
@@ -239,6 +242,66 @@ class AppleMusicService:
     # Track matching & history sync
     # ------------------------------------------------------------------
 
+    def _track_snapshot_key(self, track: dict) -> str:
+        """Return a stable ordered key for an Apple recent-played item."""
+        track_id = str(track.get('id') or '').strip()
+        if track_id:
+            return track_id
+
+        attrs = track.get('attributes', {})
+        return 'fallback:{name}:{artist}:{album}'.format(
+            name=_normalize_title(attrs.get('name', '')),
+            artist=_normalize_title(attrs.get('artistName', '')),
+            album=_normalize_title(attrs.get('albumName', '')),
+        )
+
+    def _build_snapshot_keys(self, tracks: list[dict]) -> list[str]:
+        return [self._track_snapshot_key(track) for track in tracks]
+
+    @staticmethod
+    def _overlap_length(current_keys: list[str], previous_keys: list[str]) -> int:
+        """Find the longest current suffix that matches the previous prefix."""
+        max_overlap = min(len(current_keys), len(previous_keys))
+        for overlap_size in range(max_overlap, 0, -1):
+            if current_keys[-overlap_size:] == previous_keys[:overlap_size]:
+                return overlap_size
+        return 0
+
+    @staticmethod
+    def _history_snapshot_key(entry: ListeningHistory) -> str:
+        if entry.source_item_id:
+            return entry.source_item_id
+        if entry.song.apple_music_id:
+            return entry.song.apple_music_id
+        return f'song:{entry.song_id}'
+
+    def _bootstrap_snapshot_keys(self, user, limit: int = 50) -> list[str]:
+        """Infer the latest Apple snapshot from existing listening history."""
+        history = ListeningHistory.objects.filter(
+            user=user,
+            context_type='apple_music',
+        ).select_related('song')
+
+        sourced_rows = list(
+            history
+            .filter(source_provider='apple_music')
+            .exclude(source_item_id='')
+            .order_by('-played_at', 'id')[:limit]
+        )
+        if sourced_rows:
+            return [entry.source_item_id for entry in sourced_rows]
+
+        latest_played_at = history.order_by('-played_at').values_list('played_at', flat=True).first()
+        if latest_played_at is None:
+            return []
+
+        legacy_batch = list(
+            history
+            .filter(played_at=latest_played_at)
+            .order_by('id')[:limit]
+        )
+        return [self._history_snapshot_key(entry) for entry in legacy_batch]
+
     def match_or_create_song(self, track: dict) -> Song:
         """Match an Apple Music track dict to an existing Song or create one.
 
@@ -372,31 +435,47 @@ class AppleMusicService:
     def sync_listening_history(self, user, tracks: list[dict]) -> list[Song]:
         """Match/create songs for each track and write ListeningHistory rows.
 
-        Apple Music provides no timestamps so played_at = now().
+        Apple Music provides no playback timestamps, so recent-played sync is
+        treated as a rolling snapshot. We only import the non-overlapping prefix
+        of the new snapshot and synthesize descending timestamps for display.
+
         Returns a deduplicated list of Song instances (most recent first).
         """
-        now = timezone.now()
         seen_ids: set[int] = set()
         songs: list[Song] = []
+        current_keys = self._build_snapshot_keys(tracks)
 
-        for track in tracks:
-            try:
-                song = self.match_or_create_song(track)
-            except Exception:
-                continue  # skip individual failures
+        with transaction.atomic():
+            locked_user = type(user).objects.select_for_update().get(pk=user.pk)
+            previous_keys = list(locked_user.apple_music_recent_track_ids or [])
+            if not previous_keys:
+                previous_keys = self._bootstrap_snapshot_keys(locked_user)
+            overlap = self._overlap_length(current_keys, previous_keys)
+            import_count = len(tracks) - overlap
+            tracks_to_import = tracks[:import_count]
+            now = timezone.now()
 
-            ListeningHistory.objects.get_or_create(
-                user=user,
-                song=song,
-                played_at=now,
-                defaults={
-                    'album': song.album,
-                    'context_type': 'apple_music',
-                },
-            )
+            for index, track in enumerate(tracks_to_import):
+                try:
+                    song = self.match_or_create_song(track)
+                except Exception:
+                    continue  # skip individual failures
 
-            if song.pk not in seen_ids:
-                seen_ids.add(song.pk)
-                songs.append(song)
+                ListeningHistory.objects.create(
+                    user=locked_user,
+                    song=song,
+                    album=song.album,
+                    played_at=now - timedelta(seconds=index),
+                    context_type='apple_music',
+                    source_provider='apple_music',
+                    source_item_id=self._track_snapshot_key(track),
+                )
+
+                if song.pk not in seen_ids:
+                    seen_ids.add(song.pk)
+                    songs.append(song)
+
+            locked_user.apple_music_recent_track_ids = current_keys
+            locked_user.save(update_fields=['apple_music_recent_track_ids'])
 
         return songs

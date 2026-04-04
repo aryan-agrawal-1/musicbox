@@ -39,6 +39,7 @@ function DiarySectionHeader({ title }: { title: string }) {
 
 function DiaryRow({ entry }: { entry: ListeningHistory }) {
   const song = entry.song;
+  const showsSyntheticTimestamp = entry.context_type === 'apple_music';
   const time = new Date(entry.played_at).toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
@@ -87,11 +88,13 @@ function DiaryRow({ entry }: { entry: ListeningHistory }) {
             </Text>
           </View>
 
-          <Text
-            style={{ fontSize: 12, color: Colors.textTertiary, fontVariant: ['tabular-nums'] }}
-          >
-            {time}
-          </Text>
+          {!showsSyntheticTimestamp ? (
+            <Text
+              style={{ fontSize: 12, color: Colors.textTertiary, fontVariant: ['tabular-nums'] }}
+            >
+              {time}
+            </Text>
+          ) : null}
         </View>
       </Pressable>
     </Link>
@@ -294,16 +297,22 @@ export default function DiaryScreen() {
   }, []);
 
   const allEntries = data?.pages.flatMap(p => p.results) ?? [];
+  const hasOnlySyntheticAppleHistory =
+    allEntries.length > 0 && allEntries.every(entry => entry.context_type === 'apple_music');
 
   const sections: DiarySection[] = [];
-  const sectionMap = new Map<string, ListeningHistory[]>();
-  for (const entry of allEntries) {
-    const key = formatDiaryDate(entry.played_at);
-    if (!sectionMap.has(key)) sectionMap.set(key, []);
-    sectionMap.get(key)!.push(entry);
-  }
-  for (const [title, items] of sectionMap) {
-    sections.push({ title, data: items });
+  if (hasOnlySyntheticAppleHistory) {
+    sections.push({ title: '', data: allEntries });
+  } else {
+    const sectionMap = new Map<string, ListeningHistory[]>();
+    for (const entry of allEntries) {
+      const key = formatDiaryDate(entry.played_at);
+      if (!sectionMap.has(key)) sectionMap.set(key, []);
+      sectionMap.get(key)!.push(entry);
+    }
+    for (const [title, items] of sectionMap) {
+      sections.push({ title, data: items });
+    }
   }
 
   const renderDiaryItem = useCallback(({ item }: { item: ListeningHistory }) => <DiaryRow entry={item} />, []);
@@ -374,7 +383,7 @@ export default function DiaryScreen() {
           keyExtractor={item => String(item.id)}
           renderItem={renderDiaryItem}
           renderSectionHeader={({ section }) => (
-            <DiarySectionHeader title={section.title} />
+            section.title ? <DiarySectionHeader title={section.title} /> : null
           )}
           ItemSeparatorComponent={RowSeparator}
           ListHeaderComponent={<ListHeader />}

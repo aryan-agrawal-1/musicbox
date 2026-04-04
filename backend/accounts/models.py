@@ -27,6 +27,7 @@ class User(AbstractUser):
     # Apple Music integration
     apple_music_user_token = models.CharField(max_length=2000, null=True, blank=True)
     apple_music_connected_at = models.DateTimeField(null=True, blank=True)
+    apple_music_recent_track_ids = models.JSONField(default=list, blank=True)
 
     # Denormalized stats for performance
     total_albums_rated = models.IntegerField(default=0)

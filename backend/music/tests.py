@@ -1,10 +1,13 @@
+from datetime import datetime, timedelta
 from django.test import TestCase
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.urls import reverse
+from django.utils import timezone
 from unittest.mock import patch
 from types import SimpleNamespace
 
-from music.models import Album, Artist, Song
+from music.models import Album, Artist, Song, ListeningHistory
 from music.management.commands.dedupe_catalog import Command as DedupeCatalogCommand
 from music.services.apple_music_service import AppleMusicService
 from music.services.catalog_matcher import CatalogMatcher
@@ -395,6 +398,272 @@ class CatalogDeduplicationTests(TestCase):
 
         self.assertEqual(canonical.pk, 10)
         self.assertEqual([song.pk for song in duplicates], [11])
+
+
+class AppleListeningHistorySyncTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='apple-sync-user',
+            password='testpass123',
+        )
+        self.artist = Artist.objects.create(name='Daft Punk')
+        self.album = Album.objects.create(
+            name='Discovery',
+            album_type='album',
+            release_date='2001-03-12',
+            total_tracks=14,
+        )
+        self.album.artists.add(self.artist)
+
+    def _make_existing_song(self, spotify_id: str, name: str, track_number: int) -> Song:
+        song = Song.objects.create(
+            spotify_id=spotify_id,
+            name=name,
+            album=self.album,
+            track_number=track_number,
+            disc_number=1,
+            duration_ms=300000,
+        )
+        song.artists.add(self.artist)
+        return song
+
+    def _track_payload(self, track_id: str, name: str, track_number: int) -> dict:
+        return {
+            'id': track_id,
+            'attributes': {
+                'name': name,
+                'artistName': 'Daft Punk',
+                'albumName': 'Discovery',
+                'durationInMillis': 300000,
+                'trackNumber': track_number,
+                'discNumber': 1,
+                'releaseDate': '2001-03-12',
+            },
+        }
+
+    def test_sync_only_imports_non_overlapping_prefix_and_updates_snapshot(self):
+        self._make_existing_song('spotify-new-1', 'One More Time', 1)
+        self._make_existing_song('spotify-new-2', 'Aerodynamic', 2)
+        old_song_1 = self._make_existing_song('spotify-old-1', 'Digital Love', 3)
+        old_song_2 = self._make_existing_song('spotify-old-2', 'Harder Better Faster Stronger', 4)
+
+        self.user.apple_music_recent_track_ids = ['apple-old-1', 'apple-old-2']
+        self.user.save(update_fields=['apple_music_recent_track_ids'])
+
+        tracks = [
+            self._track_payload('apple-new-1', 'One More Time', 1),
+            self._track_payload('apple-new-2', 'Aerodynamic', 2),
+            self._track_payload('apple-old-1', 'Digital Love', 3),
+            self._track_payload('apple-old-2', 'Harder Better Faster Stronger', 4),
+        ]
+
+        songs = AppleMusicService().sync_listening_history(self.user, tracks)
+
+        self.assertEqual([song.name for song in songs], ['One More Time', 'Aerodynamic'])
+
+        history = list(
+            ListeningHistory.objects
+            .filter(user=self.user)
+            .order_by('-played_at')
+        )
+        self.assertEqual(len(history), 2)
+        self.assertEqual([entry.source_item_id for entry in history], ['apple-new-1', 'apple-new-2'])
+        self.assertTrue(all(entry.source_provider == 'apple_music' for entry in history))
+        self.assertGreater(history[0].played_at, history[1].played_at)
+
+        self.user.refresh_from_db()
+        self.assertEqual(
+            self.user.apple_music_recent_track_ids,
+            ['apple-new-1', 'apple-new-2', 'apple-old-1', 'apple-old-2'],
+        )
+
+        old_song_1.refresh_from_db()
+        old_song_2.refresh_from_db()
+        self.assertIsNone(old_song_1.apple_music_id)
+        self.assertIsNone(old_song_2.apple_music_id)
+
+        repeat_songs = AppleMusicService().sync_listening_history(self.user, tracks)
+        self.assertEqual(repeat_songs, [])
+        self.assertEqual(ListeningHistory.objects.filter(user=self.user).count(), 2)
+
+    def test_sync_bootstraps_snapshot_from_legacy_history_without_importing_duplicates(self):
+        song_a = self._make_existing_song('spotify-a', 'One More Time', 1)
+        song_b = self._make_existing_song('spotify-b', 'Aerodynamic', 2)
+        song_c = self._make_existing_song('spotify-c', 'Digital Love', 3)
+
+        Song.objects.filter(pk=song_a.pk).update(apple_music_id='apple-a')
+        Song.objects.filter(pk=song_b.pk).update(apple_music_id='apple-b')
+        Song.objects.filter(pk=song_c.pk).update(apple_music_id='apple-c')
+
+        legacy_played_at = timezone.now() - timedelta(days=7)
+        for song in [song_a, song_b, song_c]:
+            ListeningHistory.objects.create(
+                user=self.user,
+                song=song,
+                album=self.album,
+                played_at=legacy_played_at,
+                context_type='apple_music',
+            )
+
+        tracks = [
+            self._track_payload('apple-a', 'One More Time', 1),
+            self._track_payload('apple-b', 'Aerodynamic', 2),
+            self._track_payload('apple-c', 'Digital Love', 3),
+        ]
+
+        songs = AppleMusicService().sync_listening_history(self.user, tracks)
+
+        self.assertEqual(songs, [])
+        self.assertEqual(ListeningHistory.objects.filter(user=self.user).count(), 3)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.apple_music_recent_track_ids, ['apple-a', 'apple-b', 'apple-c'])
+
+    def test_dedupe_apple_history_command_removes_rollout_duplicate_batch(self):
+        song_a = self._make_existing_song('spotify-a', 'One More Time', 1)
+        song_b = self._make_existing_song('spotify-b', 'Aerodynamic', 2)
+        song_c = self._make_existing_song('spotify-c', 'Digital Love', 3)
+
+        Song.objects.filter(pk=song_a.pk).update(apple_music_id='apple-a')
+        Song.objects.filter(pk=song_b.pk).update(apple_music_id='apple-b')
+        Song.objects.filter(pk=song_c.pk).update(apple_music_id='apple-c')
+        song_a.refresh_from_db()
+        song_b.refresh_from_db()
+        song_c.refresh_from_db()
+
+        older_played_at = timezone.now() - timedelta(days=1)
+        newer_played_at = timezone.now()
+
+        for song in [song_a, song_b, song_c]:
+            ListeningHistory.objects.create(
+                user=self.user,
+                song=song,
+                album=self.album,
+                played_at=older_played_at,
+                context_type='apple_music',
+            )
+
+        newer_entries = []
+        for index, song in enumerate([song_a, song_b, song_c]):
+            newer_entries.append(
+                ListeningHistory.objects.create(
+                    user=self.user,
+                    song=song,
+                    album=self.album,
+                    played_at=newer_played_at - timedelta(seconds=index),
+                    context_type='apple_music',
+                    source_provider='apple_music',
+                    source_item_id=song.apple_music_id,
+                )
+            )
+
+        call_command('dedupe_apple_history', apply=True)
+
+        remaining_newer_ids = list(
+            ListeningHistory.objects
+            .filter(user=self.user, source_provider='apple_music')
+            .values_list('song__apple_music_id', flat=True)
+        )
+        self.assertEqual(remaining_newer_ids, [])
+        self.assertFalse(ListeningHistory.objects.filter(pk=newer_entries[0].pk).exists())
+        self.assertFalse(ListeningHistory.objects.filter(pk=newer_entries[1].pk).exists())
+        self.assertFalse(ListeningHistory.objects.filter(pk=newer_entries[2].pk).exists())
+        self.assertEqual(ListeningHistory.objects.filter(user=self.user).count(), 3)
+
+
+class SpotifyListeningHistorySyncTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='spotify-sync-user',
+            password='testpass123',
+        )
+        self.artist = Artist.objects.create(spotify_id='spotify-daft-punk', name='Daft Punk')
+        self.album = Album.objects.create(
+            spotify_id='spotify-discovery',
+            name='Discovery',
+            album_type='album',
+            release_date='2001-03-12',
+            total_tracks=14,
+        )
+        self.album.artists.add(self.artist)
+        self.song = Song.objects.create(
+            spotify_id='spotify-one-more-time',
+            name='One More Time',
+            album=self.album,
+            track_number=1,
+            disc_number=1,
+            duration_ms=320000,
+        )
+        self.song.artists.add(self.artist)
+
+    def _spotify_service(self, payload):
+        service = SpotifyService.__new__(SpotifyService)
+        service.user = self.user
+        service.matcher = CatalogMatcher()
+        service.client = SimpleNamespace(current_user_recently_played=lambda limit: payload)
+        service.get_or_create_album = lambda spotify_id: self.album
+        service._create_song_from_track = lambda track_data, album: self.song
+        return service
+
+    def _recently_played_payload(self):
+        played_at = '2026-04-04T12:34:56.000Z'
+        return {
+            'items': [
+                {
+                    'played_at': played_at,
+                    'context': {'type': 'playlist'},
+                    'track': {
+                        'id': 'spotify-one-more-time',
+                        'name': 'One More Time',
+                        'album': {'id': 'spotify-discovery'},
+                        'artists': [{'id': 'spotify-daft-punk', 'name': 'Daft Punk'}],
+                        'track_number': 1,
+                        'disc_number': 1,
+                        'duration_ms': 320000,
+                        'explicit': False,
+                        'preview_url': None,
+                    },
+                }
+            ]
+        }
+
+    def test_sync_recently_played_sets_spotify_source_metadata(self):
+        payload = self._recently_played_payload()
+
+        self._spotify_service(payload).sync_recently_played()
+
+        history = ListeningHistory.objects.get(user=self.user)
+        self.assertEqual(history.album_id, self.album.id)
+        self.assertEqual(history.context_type, 'playlist')
+        self.assertEqual(history.source_provider, 'spotify')
+        self.assertEqual(
+            history.source_item_id,
+            'spotify-one-more-time:2026-04-04T12:34:56.000Z',
+        )
+
+    def test_sync_recently_played_backfills_source_metadata_on_legacy_row(self):
+        payload = self._recently_played_payload()
+        played_at = datetime.fromisoformat('2026-04-04T12:34:56+00:00')
+        ListeningHistory.objects.create(
+            user=self.user,
+            song=self.song,
+            album=None,
+            played_at=played_at,
+            context_type='',
+            source_provider='',
+            source_item_id='',
+        )
+
+        self._spotify_service(payload).sync_recently_played()
+
+        self.assertEqual(ListeningHistory.objects.filter(user=self.user).count(), 1)
+        history = ListeningHistory.objects.get(user=self.user)
+        self.assertEqual(history.album_id, self.album.id)
+        self.assertEqual(history.context_type, 'playlist')
+        self.assertEqual(history.source_provider, 'spotify')
+        self.assertEqual(
+            history.source_item_id,
+            'spotify-one-more-time:2026-04-04T12:34:56.000Z',
+        )
 
 
 class LocalFirstSearchTests(TestCase):

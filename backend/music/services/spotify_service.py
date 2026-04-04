@@ -124,6 +124,15 @@ class SpotifyService:
         )
         return song
 
+    @staticmethod
+    def _recent_play_source_id(item):
+        """Build a stable provider-specific identifier for a Spotify play."""
+        track_id = str((item.get('track') or {}).get('id') or '').strip()
+        played_at = str(item.get('played_at') or '').strip()
+        if track_id and played_at:
+            return f'{track_id}:{played_at}'
+        return played_at or track_id
+
     def sync_recently_played(self):
         """Sync user's recently played tracks from Spotify"""
         if not self.user:
@@ -134,6 +143,8 @@ class SpotifyService:
         for item in results['items']:
             track = item['track']
             played_at = datetime.fromisoformat(item['played_at'].replace('Z', '+00:00'))
+            context_type = item.get('context', {}).get('type', '')
+            source_item_id = self._recent_play_source_id(item)
 
             # Get or create album
             album = self.get_or_create_album(track['album']['id'])
@@ -142,15 +153,34 @@ class SpotifyService:
             song = self._create_song_from_track(track, album)
 
             # Create listening history entry (avoid duplicates)
-            ListeningHistory.objects.get_or_create(
+            history, created = ListeningHistory.objects.get_or_create(
                 user=self.user,
                 song=song,
                 played_at=played_at,
                 defaults={
                     'album': album,
-                    'context_type': item.get('context', {}).get('type', ''),
+                    'context_type': context_type,
+                    'source_provider': 'spotify',
+                    'source_item_id': source_item_id,
                 }
             )
+
+            if not created:
+                update_fields = []
+                if history.album_id is None and album:
+                    history.album = album
+                    update_fields.append('album')
+                if not history.context_type and context_type:
+                    history.context_type = context_type
+                    update_fields.append('context_type')
+                if not history.source_provider:
+                    history.source_provider = 'spotify'
+                    update_fields.append('source_provider')
+                if not history.source_item_id and source_item_id:
+                    history.source_item_id = source_item_id
+                    update_fields.append('source_item_id')
+                if update_fields:
+                    history.save(update_fields=update_fields)
 
         return results
 
