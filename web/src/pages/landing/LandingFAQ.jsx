@@ -25,7 +25,14 @@ export default function LandingFAQ() {
       <RevealOnScroll>
         <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">FAQ</h2>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300">
-          Quick answers, no fluff. If you have a question that’s not here, just message us.
+          Quick answers, no fluff. If you have a question that’s not here,{' '}
+          <a
+            href="#contact"
+            className="font-medium text-zinc-200 underline decoration-zinc-600 underline-offset-2 transition-colors hover:text-white"
+          >
+            contact us
+          </a>
+          .
         </p>
       </RevealOnScroll>
 

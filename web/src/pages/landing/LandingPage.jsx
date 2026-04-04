@@ -4,6 +4,7 @@ import LandingHero from './LandingHero.jsx'
 import LandingSteps from './LandingSteps.jsx'
 import LandingFeatures from './LandingFeatures.jsx'
 import LandingFAQ from './LandingFAQ.jsx'
+import LandingContact from './LandingContact.jsx'
 import LandingCTA from './LandingCTA.jsx'
 import Seo from '../../seo/Seo.jsx'
 
@@ -25,6 +26,7 @@ export default function LandingPage() {
         <LandingSteps />
         <LandingFeatures />
         <LandingFAQ />
+        <LandingContact />
         <LandingCTA />
       </main>
 
@@ -33,7 +35,13 @@ export default function LandingPage() {
           <p className="text-xs text-zinc-400">
             Noted is a music diary for people who love to rate and review what they listen to.
           </p>
-          <nav className="text-xs" aria-label="Legal">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs" aria-label="Footer">
+            <a
+              href="#contact"
+              className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition-colors hover:text-white"
+            >
+              Contact
+            </a>
             <Link
               to="/privacy"
               className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition-colors hover:text-white"

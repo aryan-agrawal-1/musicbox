@@ -34,6 +34,9 @@ export default function LandingHero() {
           <a className="text-sm text-zinc-400 hover:text-zinc-200" href="#faq">
             FAQ
           </a>
+          <a className="text-sm text-zinc-400 hover:text-zinc-200" href="#contact">
+            Contact
+          </a>
         </div>
 
         <div className="flex items-center gap-3">

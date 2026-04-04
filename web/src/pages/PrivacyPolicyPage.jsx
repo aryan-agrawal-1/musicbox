@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 import Seo from '../seo/Seo.jsx'
 
-const legalEntityName = 'Noted'
+const legalEntityName = 'Aryan Agrawal, trading as Noted'
 
 const privacyEmail = 'hello@getnotedapp.com'
 
@@ -12,7 +12,7 @@ export default function PrivacyPolicyPage() {
   return (
     <>
       <Seo
-        title="Privacy Policy — Noted"
+        title="Noted Privacy Policy"
         description="How Noted collects, uses, and shares information when you use our music diary and social features."
       />
       <div className="min-h-dvh bg-[#0B0B0B] text-white">
@@ -128,25 +128,25 @@ export default function PrivacyPolicyPage() {
               </p>
               <ul className="list-disc space-y-2 pl-5">
                 <li>
-                  <span className="font-medium text-zinc-200">Performance of a contract</span> —
+                  <span className="font-medium text-zinc-200">Performance of a contract</span> -
                   processing necessary to provide the Service you request (for example, account
                   creation, core app features, linked music services you choose, and support).
                 </li>
                 <li>
-                  <span className="font-medium text-zinc-200">Legitimate interests</span> —
+                  <span className="font-medium text-zinc-200">Legitimate interests</span> -
                   processing that is necessary for our legitimate interests, where those interests
                   are not overridden by your rights (for example, securing the Service, preventing
                   abuse, improving features, and certain product analytics), balanced against your
                   privacy rights.
                 </li>
                 <li>
-                  <span className="font-medium text-zinc-200">Consent</span> — where we ask for
+                  <span className="font-medium text-zinc-200">Consent</span> - where we ask for
                   consent (for example, optional analytics beyond what we can justify on other bases,
                   or marketing where required), you may withdraw consent at any time without
                   affecting the lawfulness of processing before withdrawal.
                 </li>
                 <li>
-                  <span className="font-medium text-zinc-200">Legal obligation</span> — where we
+                  <span className="font-medium text-zinc-200">Legal obligation</span> - where we
                   must process personal data to comply with applicable law.
                 </li>
               </ul>
@@ -158,7 +158,7 @@ export default function PrivacyPolicyPage() {
             <div className="space-y-4 text-sm leading-relaxed text-zinc-300">
               <p>
                 We share personal data with service providers who process it on our instructions
-                (processors) to help us run the Service—for example, hosting, storage, email
+                (processors) to help us run the Service, for example, hosting, storage, email
                 delivery, analytics, push notification delivery, and music platform integrations. We
                 require processors to protect personal data appropriately. We may also disclose
                 information when required by law, to protect rights and safety, or in connection
@@ -269,9 +269,9 @@ export default function PrivacyPolicyPage() {
               <p>
                 Where we transfer personal data from the UK or EEA to countries that are not
                 subject to an adequacy decision or similar recognition, we implement appropriate
-                safeguards required by applicable law—such as the UK International Data Transfer
+                safeguards required by applicable law, such as the UK International Data Transfer
                 Agreement or Addendum, the EU Standard Contractual Clauses, or another approved
-                transfer mechanism—unless an exception applies.
+                transfer mechanism, unless an exception applies.
               </p>
             </div>
           </section>
