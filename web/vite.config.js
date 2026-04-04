@@ -15,7 +15,7 @@ export default defineConfig({
     vitePrerender({
       // Generate real HTML for crawlers (especially `/`).
       staticDir: path.join(process.cwd(), 'dist'),
-      routes: ['/'],
+      routes: ['/', '/privacy'],
       server: {
         host: '127.0.0.1',
         port: 13010,
@@ -45,6 +45,11 @@ export default defineConfig({
     <loc>${baseUrl}/login</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/privacy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
 </urlset>
 `

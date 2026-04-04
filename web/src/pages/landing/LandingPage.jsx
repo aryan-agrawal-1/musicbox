@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 import LandingHero from './LandingHero.jsx'
 import LandingSteps from './LandingSteps.jsx'
 import LandingFeatures from './LandingFeatures.jsx'
@@ -27,10 +29,18 @@ export default function LandingPage() {
       </main>
 
       <footer className="relative z-10 border-t border-white/5">
-        <div className="mx-auto max-w-6xl px-6 py-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-zinc-400">
             Noted is a music diary for people who love to rate and review what they listen to.
           </p>
+          <nav className="text-xs" aria-label="Legal">
+            <Link
+              to="/privacy"
+              className="text-zinc-400 underline decoration-zinc-600 underline-offset-2 transition-colors hover:text-white"
+            >
+              Privacy Policy
+            </Link>
+          </nav>
         </div>
       </footer>
       </div>
